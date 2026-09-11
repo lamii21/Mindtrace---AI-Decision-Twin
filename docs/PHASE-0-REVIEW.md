@@ -141,3 +141,34 @@ queryable evidence chain; and enough of an evaluation backtest to show a reliabi
 That is already a flagship AI-Software-Engineering project and a strong 45-minute interview
 conversation. Everything past it (parallel-twin debate, evolution timeline, live evaluation,
 active elicitation, "what would flip this") is upside, not the thesis.
+
+---
+
+## 8. M2 addendum — what implementing event sourcing actually surfaced
+
+M2 built the event log, the `Memory`/`Evidence` domain types, the pure fold, and a real
+(non-topic-based) deletion preview/apply — see `docs/11-roadmap-milestones.md`'s sequencing note
+for how the milestone list was renumbered to match. Four things worth recording rather than
+burying in code:
+
+1. **`Evidence.belief_type`'s approved vocabulary has no "a memory corroborates another memory"
+   case** (it's `preference`/`trait`/`value`/`decision_factor`/`contradiction` — all M3+ belief
+   kinds). M2's evidence tests exercise the mechanism with a synthetic `decision_factor` belief
+   id rather than adding a new enum value, since nothing yet needs memory-to-memory evidence as a
+   first-class feature. Revisit once M4 (Bayesian preference) produces the first real belief and
+   the Evidence Panel design gets a real workout — the gap may turn out to matter, or may not.
+2. **`Memory` deliberately omits `confidence`/`salience`/`embedding`** from the AG-3 sketch in
+   `docs/architecture/02-domain-model.md` — each needs an engine M2 doesn't have (confidence
+   model, ranking, embeddings). Add them when their producing milestone exists, not before;
+   populating them with a placeholder now would be exactly the "looks computed but isn't" failure
+   principle 15 warns about.
+3. **A projected `Memory`'s id is its originating event's id** (`MemoryId(event.id)`), not a
+   separately minted one. Clean and fully deterministic for M2. Worth a deliberate check once
+   Postgres persistence lands (deferred, unscheduled - see the roadmap note): this makes
+   `memory.id` naturally foreign-key-compatible with `memory_event.id`, which is convenient, but
+   the schema design should confirm that's still wanted rather than inheriting it by accident.
+4. **Deletion is real, not a preview of a preview.** `deleted` events tombstone a memory in place
+   (kept, `deleted_at` set - not physically removed) and `preview_deletion`/`apply_deletion`
+   compute genuine impact against `Evidence`. What remains out of scope: topic-based ("forget
+   everything about location") deletion needs semantic matching over memory content, which needs
+   embeddings (M5+) - explicit-id deletion is the whole of M2's claim here, honestly bounded.

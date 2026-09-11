@@ -5,6 +5,19 @@ one focused session; each one leaves `main` green and demoable.
 
 Legend — **Diff**: 🟢 small · 🟡 medium · 🔴 large-for-one-session (split if it slips).
 
+> **Sequencing note (added after M2).** M1 pulled the minimal FastAPI `/health` app
+> forward from the original M6 slot (harmless, infra-free; see M1's final report). M2 was
+> re-scoped from "MCDA engine" to "event-sourced memory + evidence + provenance foundation" —
+> the event-sourcing half of the original M4, built with an in-memory `EventStore`/
+> `EvidenceStore` and **no PostgreSQL**, per ADR-001 and the M2 review below. The original M2
+> (MCDA) and M3 (Bayesian preference) content is renumbered to **M3** and **M4** below, unchanged
+> otherwise. PostgreSQL/Alembic/RLS (the rest of the original M4) is **deferred and unscheduled**
+> — it lands whenever a later milestone first needs real durability, using the exact
+> `EventStore`/`EvidenceStore` ports M2 already defines (swap the in-memory adapter, touch
+> nothing above it). Milestones M5+ below predate this resequencing; treat their file lists as
+> intent, not a contract, and re-verify against the ports actually in place when each is picked up
+> — the same way this document is now being corrected against M1's and M2's real output.
+
 ---
 
 ## M1 — Repo skeleton + domain layer 🟢
@@ -34,7 +47,42 @@ increasing; `direction` ∈ {benefit,cost}; every enum round-trips; **import iso
 
 ---
 
-## M2 — MCDA engine (pure) 🟡
+## M2 — Event-sourced memory + evidence + provenance foundation 🔴 — **done**
+
+**Objective.** The append-only source of truth and its first projection, in-memory only
+(PostgreSQL deferred — see the sequencing note above): typed events for `ingested`/`corrected`/
+`deleted` (ADR-001), a pure `fold_memory_events` projector, the `Memory`/`Evidence` domain types,
+a source→epistemic-state classifier, and a deletion preview/apply built only from what M2 has.
+
+**Created.** `domain/{memory,evidence,provenance}.py`; `domain/enums.py` +
+`MemoryType`/`BeliefType`/`EvidenceSourceKind`; `domain/ids.py` + `UserId`/`EventId`/`MemoryId`/
+`EvidenceId`; `events/{__init__,enums,types,store,in_memory_store,evidence_store,rederive}.py`;
+`events/projectors/{__init__,memory}.py`; `tests/support/memory_fixtures.py`; `tests/unit/domain/
+test_{memory_model,evidence_model,provenance}.py`; `tests/unit/events/test_{event_types,
+in_memory_store,evidence_store,memory_projector,rederive,determinism}.py`;
+`tests/property/test_event_properties.py`.
+
+**Modified.** `domain/__init__.py` (exports), `.importlinter` (`events` layer + contracts),
+`tests/unit/test_import_isolation.py` (parametrised over `domain/` and `events/`).
+
+**Dependencies.** none new (stdlib `uuid`/`datetime` + already-present `pydantic`).
+
+**Tests.** 229 passed. Append-only semantics (gap-free per-user `seq`, correction/deletion as new
+events, no mutation/removal method on either store); provenance for all three `ProvenanceSource`
+values + the `None → UNCERTAIN` case; exact e1→e2→e3 replay state; determinism (repeat fold
+equal, immune to poisoned wall-clock/env/RNG); rebuildability (`rederive` after discard matches a
+manual fold); fold-time integrity checks (conflicting `user_id`, duplicate/missing `seq`,
+correcting/deleting a non-live memory); a deletion preview/apply cycle against `Evidence`; a
+Hypothesis-generated valid event program (ingest/correct/delete respecting liveness) replays
+deterministically; JSON round-trips for every event payload type. 98.98% coverage.
+
+**Acceptance.** `lint-imports` 5/5 contracts kept; `ruff`/`ruff format`/`mypy --strict` clean; no
+`engines/`, `db/`, `llm/`, `services/`, `security/`, `observability/`, or `workers/` directory
+exists yet. See `docs/PHASE-0-REVIEW.md` for the M2 addendum and open questions this raised.
+
+---
+
+## M3 — MCDA engine (pure) 🟡
 
 **Objective.** `engines/mcda/` implements spec §05 exactly; the 5 worked examples pass as golden
 tests; all 9 properties pass.
@@ -58,7 +106,7 @@ byte-equality across processes; `risk_tolerance = effort_tolerance = 0.5 ⇒ γ 
 
 ---
 
-## M3 — Bayesian preference engine (pure) 🟡
+## M4 — Bayesian preference engine (pure) 🟡
 
 **Objective.** `engines/preference/` — build prior from `traits.yaml`, Laplace update for
 pairwise observations, conjugate Beta update for dispositions, posterior read
@@ -80,30 +128,15 @@ update; synthetic-`θ*` recovery within 90% CI on covered directions; determinis
 
 ---
 
-## M4 — Event store + memory projection + Postgres bootstrap 🔴
+## PostgreSQL persistence — deferred, unscheduled
 
-**Objective.** Append-only `memory_event`; `EventStore` Protocol + Postgres implementation;
-`MemoryProjector` folds events → `memory` rows; field-level encryption type; Alembic baseline;
-RLS.
-
-**Created.** `db/{base,session,crypto,event_store}.py`, `db/models/{memory_event,memory}.py`,
-`events/{types,store,rederive}.py`, `events/projectors/{__init__,memory}.py`,
-`security/keyring.py`, `migrations/0001_baseline.py`, `infra/postgres/init.sql`
-(`create extension vector`), `tests/integration/{test_event_store,test_memory_projection,
-test_rls,test_crypto_roundtrip,test_replay_from_snapshot}.py`, `tests/conftest.py` (`pg`
-testcontainer).
-
-**Modified.** `pyproject.toml`, `docker-compose.dev.yml`, `backend.yml` (integration stage).
-
-**Dependencies.** `sqlalchemy`, `alembic`, `pgvector`, `testcontainers[postgres]`,
-`cryptography` (or `pynacl`).
-
-**Tests.** append gap-free & rejects `UPDATE`/`DELETE`; fold determinism (same events → same
-rows, twice, byte-identical); crypto round-trip; RLS blocks cross-tenant and is fail-closed when
-the GUC is unset; replay starting from a snapshot equals full replay.
-
-**Acceptance.** integration suite green against a real Postgres in CI; `alembic upgrade head` /
-`downgrade base` clean.
+The original M4 also covered a Postgres-backed `EventStore` (Alembic baseline, RLS,
+`db/event_store.py`). That work is **not dropped, just not yet scheduled**: M2 already defines
+the `EventStore`/`EvidenceStore` ports a Postgres adapter would implement, so this becomes a
+milestone of its own whenever a later step first needs real durability — swap the in-memory
+adapter for a Postgres one, no change above the port. `M5`–`M10` below assume that milestone has
+happened by the time each needs it (e.g. `M6`'s `db/session.py`, `M9`'s `migrations/`); re-verify
+that assumption against what actually exists when each is picked up, per the sequencing note above.
 
 ---
 
