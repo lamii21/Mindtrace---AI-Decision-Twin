@@ -10,15 +10,18 @@ an LLM provider SDK, or any higher ``mindtrace`` layer -- enforced by
 from __future__ import annotations
 
 from mindtrace.domain.enums import (
+    BeliefType,
     ChoiceOption,
     ConsentScope,
     DecisionOutcome,
     DecisionStatus,
     EpistemicState,
+    EvidenceSourceKind,
     FactorDirection,
     FactorTier,
     InterviewItemRole,
     InterviewItemType,
+    MemoryType,
     Polarity,
     PosteriorKind,
     ProvenanceSource,
@@ -34,6 +37,7 @@ from mindtrace.domain.errors import (
     SchemaStructureError,
     SchemaValidationError,
 )
+from mindtrace.domain.evidence import Evidence
 from mindtrace.domain.factors import (
     FactorSpec,
     FactorTaxonomy,
@@ -41,7 +45,16 @@ from mindtrace.domain.factors import (
     load_factor_taxonomy,
     parse_factor_taxonomy,
 )
-from mindtrace.domain.ids import DispositionId, EvidenceTag, FactorId, InterviewItemId
+from mindtrace.domain.ids import (
+    DispositionId,
+    EventId,
+    EvidenceId,
+    EvidenceTag,
+    FactorId,
+    InterviewItemId,
+    MemoryId,
+    UserId,
+)
 from mindtrace.domain.interview import (
     DispositionItem,
     InterviewBank,
@@ -50,6 +63,8 @@ from mindtrace.domain.interview import (
     load_interview_bank,
     parse_interview_bank,
 )
+from mindtrace.domain.memory import Memory
+from mindtrace.domain.provenance import classify_epistemic_state
 from mindtrace.domain.schema_bundle import SchemaBundle, load_schema_bundle
 from mindtrace.domain.traits import (
     BetaPrior,
@@ -63,6 +78,7 @@ from mindtrace.domain.traits import (
 )
 
 __all__ = [
+    "BeliefType",
     "BetaPrior",
     "ChoiceOption",
     "ConsentScope",
@@ -73,6 +89,10 @@ __all__ = [
     "DispositionSpec",
     "DomainError",
     "EpistemicState",
+    "EventId",
+    "Evidence",
+    "EvidenceId",
+    "EvidenceSourceKind",
     "EvidenceTag",
     "FactorDirection",
     "FactorId",
@@ -85,6 +105,9 @@ __all__ = [
     "InterviewItemId",
     "InterviewItemRole",
     "InterviewItemType",
+    "Memory",
+    "MemoryId",
+    "MemoryType",
     "MindtraceError",
     "NormalPrior",
     "OrdinalScale",
@@ -102,6 +125,8 @@ __all__ = [
     "SelfReportReliability",
     "TraitModel",
     "UncertainReason",
+    "UserId",
+    "classify_epistemic_state",
     "load_factor_taxonomy",
     "load_interview_bank",
     "load_schema_bundle",

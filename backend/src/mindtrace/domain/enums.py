@@ -5,8 +5,10 @@ enums, never bare strings (Invariant C). ``StrEnum`` keeps serialisation and
 YAML/JSON round-tripping trivial while preserving type safety.
 
 Only vocabularies that the specs pin down and that M1-M4 need are defined. Enums
-for concepts with no consumer yet (memory subtypes, event types, decision
-category) are deferred to the milestone that introduces them.
+for concepts with no consumer yet (decision category, contradiction kind) are
+deferred to the milestone that introduces them. ``MemoryEventType`` lives in
+``mindtrace.events.types``, not here (``docs/architecture/01-repository-structure.md``
+s3: event-sourcing vocabulary belongs to the ``events`` layer).
 """
 
 from __future__ import annotations
@@ -170,3 +172,37 @@ class ConsentScope(StrEnum):
     RUN_INFERENCE = "run_inference"
     USE_LLM_PROVIDER = "use_llm_provider"
     RETAIN_OUTCOMES = "retain_outcomes"
+
+
+class MemoryType(StrEnum):
+    """The kind of thing a projected memory represents (``docs/architecture/02`` AG-3)."""
+
+    EPISODIC = "episodic"
+    SEMANTIC = "semantic"
+    PREFERENCE = "preference"
+    DECISION = "decision"
+
+
+class BeliefType(StrEnum):
+    """What an :class:`~mindtrace.domain.evidence.Evidence` edge supports (AG-9).
+
+    None of these belief kinds are produced by anything in M2 (no engine
+    exists yet to derive a preference, a trait, or a decision factor) - the
+    vocabulary is declared now, ahead of its producers, the same way M1
+    declared ``DecisionOutcome``/``DecisionStatus`` before the MCDA engine.
+    """
+
+    PREFERENCE = "preference"
+    TRAIT = "trait"
+    VALUE = "value"
+    DECISION_FACTOR = "decision_factor"
+    CONTRADICTION = "contradiction"
+
+
+class EvidenceSourceKind(StrEnum):
+    """What an :class:`~mindtrace.domain.evidence.Evidence` edge points back to (AG-9)."""
+
+    MEMORY = "memory"
+    DECISION = "decision"
+    ELICITATION_ANSWER = "elicitation_answer"
+    OUTCOME = "outcome"
