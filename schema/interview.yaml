@@ -1,0 +1,205 @@
+# MINDTRACE Twin Interview - canonical item bank
+# ---------------------------------------------------------------------------
+# Forced-choice items that seed the trait posteriors (spec/07). Each pairwise
+# item declares the factor levels of its two synthetic options on the SAME
+# anchored scale as factor extraction (schema/factors.yaml). The `delta`
+# (n_A - n_B per factor) is precomputed at load and is the design vector for
+# the Bradley-Terry / Laplace update.
+#
+# Disposition items (gamble / intertemporal / ambiguity / effort) target ONE
+# disposition and update its Beta posterior by pseudo-count.
+#
+# Versioned. A change to items or their profiles bumps `version` and requires
+# re-running the interview-derived prior for affected users on next login.
+# ---------------------------------------------------------------------------
+
+version: 1
+released: 2026-09-09
+factor_schema_version: 1
+
+config:
+  likert_warmup_factors:            # quick 1-5 importance ratings; nudge prior mu only, high-reliability factors
+    [financial_return, financial_security, skill_growth, location_fit, time_demand]
+  fixed_prefix_items: 12            # first 12 items are fixed and cover every core factor >= once
+  adaptive_suffix_max: 12          # then up to 12 more chosen by expected information gain
+  target_total: [18, 24]           # stop when in range and marginal info gain < epsilon
+  logistic_scale_s: 0.6            # spec/04 s3
+  pseudocount_kappa: 1.5           # disposition Beta update strength
+  consistency_check_item_ids: [p03r, p07r]   # swapped-option repeats of p03, p07
+
+# ---- Pairwise trade-off items (update weight logits) -----------------------
+# level codes: vl, l, m, h, vh  (very_low ... very_high)
+pairwise:
+
+  - id: p01
+    prompt_A: "A role that pays well but runs long hours with weekend work."
+    prompt_B: "A role that pays modestly but protects your evenings and weekends."
+    A: {financial_return: h,  time_demand: h,  health_wellbeing: l}
+    B: {financial_return: l,  time_demand: l,  health_wellbeing: h}
+    covers: [financial_return, time_demand, health_wellbeing]
+
+  - id: p02
+    prompt_A: "Work where you learn a lot but the pay is low for a year."
+    prompt_B: "Work where you already know everything but it pays well now."
+    A: {skill_growth: vh, financial_return: l}
+    B: {skill_growth: vl, financial_return: h}
+    covers: [skill_growth, financial_return]
+
+  - id: p03
+    prompt_A: "A stable permanent job near your family and friends."
+    prompt_B: "An exciting job in another country on a 1-year contract."
+    A: {stability: h, location_fit: vh, financial_security: h, intrinsic_interest: m}
+    B: {stability: vl, location_fit: vl, financial_security: l, intrinsic_interest: vh}
+    covers: [stability, location_fit, financial_security, intrinsic_interest]
+
+  - id: p03r        # consistency check: options swapped, factors identical
+    prompt_A: "An exciting job in another country on a 1-year contract."
+    prompt_B: "A stable permanent job near your family and friends."
+    A: {stability: vl, location_fit: vl, financial_security: l, intrinsic_interest: vh}
+    B: {stability: h, location_fit: vh, financial_security: h, intrinsic_interest: m}
+    covers: [stability, location_fit, financial_security, intrinsic_interest]
+    role: consistency_check
+
+  - id: p04
+    prompt_A: "A job with a lot of freedom over how and when you work, average team."
+    prompt_B: "A job with a rigid schedule but outstanding colleagues and mentors."
+    A: {autonomy: vh, social_fit: m}
+    B: {autonomy: l,  social_fit: vh}
+    covers: [autonomy, social_fit]
+
+  - id: p05
+    prompt_A: "Build something new from scratch, with real risk it doesn't work out."
+    prompt_B: "Maintain a proven system, safe and predictable, little room to create."
+    A: {creative_expression: vh, downside_risk: h,  reversibility: m}
+    B: {creative_expression: vl, downside_risk: vl, reversibility: h}
+    covers: [creative_expression, downside_risk, reversibility]
+
+  - id: p06
+    prompt_A: "Work that clearly helps people and matches your values, ordinary pay."
+    prompt_B: "Work you're indifferent about ethically, but it pays very well."
+    A: {values_alignment: vh, financial_return: m}
+    B: {values_alignment: l,  financial_return: vh}
+    covers: [values_alignment, financial_return]
+
+  - id: p07
+    prompt_A: "A prestigious employer that opens many future doors; you're unsure you'll enjoy it."
+    prompt_B: "A lesser-known place doing work you find genuinely interesting day to day."
+    A: {option_value: vh, intrinsic_interest: l}
+    B: {option_value: l,  intrinsic_interest: vh}
+    covers: [option_value, intrinsic_interest]
+
+  - id: p07r
+    prompt_A: "A lesser-known place doing work you find genuinely interesting day to day."
+    prompt_B: "A prestigious employer that opens many future doors; you're unsure you'll enjoy it."
+    A: {option_value: l,  intrinsic_interest: vh}
+    B: {option_value: vh, intrinsic_interest: l}
+    covers: [option_value, intrinsic_interest]
+    role: consistency_check
+
+  - id: p08
+    prompt_A: "A choice you can easily walk back if it goes wrong."
+    prompt_B: "A choice with a slightly better upside that is very hard to undo."
+    A: {reversibility: vh, financial_return: m}
+    B: {reversibility: vl, financial_return: h}
+    covers: [reversibility, financial_return]
+
+  - id: p09
+    prompt_A: "A demanding role that builds durable, compounding advantages over years."
+    prompt_B: "An easy role with a nice one-off bonus and no lasting benefit."
+    A: {long_term_value: vh, time_demand: h,  financial_return: m}
+    B: {long_term_value: vl, time_demand: vl, financial_return: h}
+    covers: [long_term_value, time_demand, financial_return]
+
+  - id: p10
+    prompt_A: "Great pay, but the income could vanish with little warning."
+    prompt_B: "Lower pay you can absolutely count on every month."
+    A: {financial_return: vh, financial_security: vl}
+    B: {financial_return: m,  financial_security: vh}
+    covers: [financial_return, financial_security]
+
+  - id: p11
+    prompt_A: "A role that stretches your skills hard but leaves you drained."
+    prompt_B: "A role well within your skills that keeps you rested and balanced."
+    A: {skill_growth: vh, health_wellbeing: l,  time_demand: h}
+    B: {skill_growth: l,  health_wellbeing: vh, time_demand: l}
+    covers: [skill_growth, health_wellbeing, time_demand]
+
+  - id: p12
+    prompt_A: "Move to a great opportunity in a city you don't know."
+    prompt_B: "A merely good opportunity where you already live."
+    A: {location_fit: vl, skill_growth: h,  option_value: h}
+    B: {location_fit: vh, skill_growth: m,  option_value: m}
+    covers: [location_fit, skill_growth, option_value]
+
+  - id: p13
+    prompt_A: "Autonomy and creative latitude, but you're mostly on your own."
+    prompt_B: "Less freedom, but a strong supportive team around you."
+    A: {autonomy: vh, creative_expression: h, social_fit: l}
+    B: {autonomy: m,  creative_expression: m, social_fit: vh}
+    covers: [autonomy, creative_expression, social_fit]
+
+  - id: p14
+    prompt_A: "Secure, stable, and comfortable - not much changes year to year."
+    prompt_B: "Less secure, but you're learning and growing constantly."
+    A: {stability: vh, financial_security: h,  skill_growth: l}
+    B: {stability: l,  financial_security: m,  skill_growth: vh}
+    covers: [stability, financial_security, skill_growth]
+
+# ---- Disposition items (update Beta posteriors) --------------------------
+disposition:
+
+  - id: d01
+    target: risk_tolerance
+    type: gamble
+    prompt_A: "Take EUR 1000 for certain."
+    prompt_B: "A coin flip: EUR 2500 if heads, EUR 0 if tails."
+    risky_option: B          # choosing B -> y = 1 (risk-tolerant)
+
+  - id: d02
+    target: risk_tolerance
+    type: gamble
+    prompt_A: "A career move with a modest, near-certain improvement."
+    prompt_B: "A career move: 55% chance it's excellent, 45% chance it's worse than now."
+    risky_option: B
+
+  - id: d03
+    target: time_discount
+    type: intertemporal
+    prompt_A: "A benefit worth a lot to you, available now."
+    prompt_B: "A benefit worth ~70% more to you, but only in 3 years."
+    patient_option: B        # choosing B -> y = 1 (patient => LOW time_discount => y inverted at update)
+
+  - id: d04
+    target: time_discount
+    type: intertemporal
+    prompt_A: "Spend this year on visible, immediate wins."
+    prompt_B: "Spend this year on foundations that pay off from year 3 onward."
+    patient_option: B
+
+  - id: d05
+    target: ambiguity_aversion
+    type: ambiguity
+    prompt_A: "An option whose odds of success are clearly known to be 60%."
+    prompt_B: "An option that experts think is 'probably a bit better than 60%' but nobody can say."
+    ambiguity_seeking_option: B   # choosing B -> y = 1 (ambiguity-tolerant => LOW ambiguity_aversion)
+
+  - id: d06
+    target: ambiguity_aversion
+    type: ambiguity
+    prompt_A: "A well-mapped path with documented outcomes for people like you."
+    prompt_B: "A newer path with little track record but a plausible strong upside."
+    ambiguity_seeking_option: B
+
+  - id: d07
+    target: effort_tolerance
+    type: effort
+    prompt_A: "Achieve a good result with sustainable, steady effort."
+    prompt_B: "Achieve a great result but only through sustained long hours and intensity."
+    high_effort_option: B    # choosing B -> y = 1 (effort-tolerant)
+
+  - id: d08
+    target: effort_tolerance
+    type: effort
+    prompt_A: "A lighter commitment alongside the rest of your life."
+    prompt_B: "An all-in commitment that crowds out most other things for a while."
+    high_effort_option: B

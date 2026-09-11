@@ -1,0 +1,338 @@
+# MINDTRACE canonical factor taxonomy
+# ---------------------------------------------------------------------------
+# This file is the single source of truth for the decision dimensions the
+# MCDA engine scores. It is loaded at import into frozen domain objects and
+# validated against schema/factors.schema.json in CI.
+#
+# CHANGING THIS FILE:
+#   - bump `version`
+#   - add an entry to schema/CHANGELOG.md
+#   - a change that adds/removes a factor or alters its scale/direction/anchors
+#     REQUIRES an Alembic migration + a scheduled twin re-derivation
+#     (see ADR-002 consequences). `factor_schema_version` is stamped on every
+#     TwinVersion, Prediction and Simulation.
+# ---------------------------------------------------------------------------
+
+version: 1
+released: 2026-09-09
+
+# Shared ordinal scale. The extractor (LLM, schema-validated) emits exactly
+# one `level` per factor per option, plus `known: bool`. `unknown` is NOT a
+# level - it is `known: false`, which removes the factor from that option's
+# weighted aggregation and lowers coverage (feeds the UNCERTAIN gate + ADR-006).
+scale:
+  levels: [very_low, low, moderate, high, very_high]
+  # Default linear anchors on [0,1] before polarity correction.
+  # A factor may override with its own `anchors:` (e.g. diminishing returns).
+  default_anchors:
+    very_low:  0.00
+    low:       0.25
+    moderate:  0.50
+    high:      0.75
+    very_high: 1.00
+
+# direction:
+#   benefit  -> higher level is better; normalized value = anchor
+#   cost     -> higher level is worse;  normalized value = 1 - anchor
+# `can_be_inferred`: may the Preference/Trait engines assign a weight to this
+#   factor from observed decisions, or is it interview/declared-only in v1?
+# `self_report_reliability`: how much to trust a user's stated importance for
+#   this factor when seeding the prior (high|medium|low).
+
+factors:
+
+  - id: financial_return
+    label: Financial return
+    description: >
+      Net monetary effect over the relevant horizon: income, savings, equity,
+      or resale value gained, minus direct costs. Signed - a costly option with
+      no return scores very_low; a well-paid role or an appreciating asset
+      scores high/very_high.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    anchors: {very_low: 0.00, low: 0.30, moderate: 0.50, high: 0.72, very_high: 1.00}
+    examples:
+      - "Internship A pays 1400 EUR/mo, Internship B pays 900 EUR/mo -> A ~ high, B ~ moderate"
+      - "A 12k EUR course with no near-term income effect -> very_low"
+    possible_evidence: [decision_records_with_stated_salary, budget_constraints_memory, past_choices_favouring_pay]
+    can_be_inferred: true
+    self_report_reliability: high
+
+  - id: financial_security
+    label: Financial security
+    description: >
+      Predictability and downside protection of the person's finances if this
+      option is taken: stable income, runway, low chance of a shortfall.
+      Distinct from `financial_return` (amount) - this is variance and safety.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Permanent contract vs 3-month freelance gig -> permanent ~ high, freelance ~ low"
+      - "Taking a role that depletes savings to zero -> very_low"
+    possible_evidence: [dependants_memory, debt_memory, past_choices_favouring_stable_income, emergency_fund_statements]
+    can_be_inferred: true
+    self_report_reliability: high
+
+  - id: skill_growth
+    label: Skill growth
+    description: >
+      Degree to which the option builds transferable capabilities (technical,
+      professional, interpersonal) that remain valuable outside this specific
+      context.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Backend internship using a stack the person wants to learn -> high"
+      - "Repeating work they have already mastered -> low"
+    possible_evidence: [stated_learning_goals, past_choices_favouring_new_tech, skills_inventory_gaps]
+    can_be_inferred: true
+    self_report_reliability: high
+
+  - id: option_value
+    label: Option value
+    description: >
+      How much the option widens the person's FUTURE choice set - doors opened,
+      networks, credentials, mobility - independent of skill gained or money.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "A role at a well-known company that many future employers recognise -> high"
+      - "A niche path that locks the person into one narrow track -> low"
+    possible_evidence: [past_choices_favouring_flexibility, stated_uncertainty_about_direction, network_growth_memory]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: long_term_value
+    label: Long-term value
+    description: >
+      Benefit that compounds or persists over years rather than being consumed
+      once: equity that vests, a durable asset, a lasting relationship, health
+      capital, a reputation. Contrast with one-off gains.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Equity vesting over 4 years -> high; a one-time signing bonus -> low on THIS factor"
+      - "A qualification with lifelong recognition -> high"
+    possible_evidence: [past_choices_favouring_deferred_payoff, stated_long_term_goals]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: autonomy
+    label: Autonomy
+    description: >
+      Control over how, when, where and on what the person works or acts:
+      self-direction, flexible hours, freedom from close supervision.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Remote role, own choice of tools and schedule -> very_high"
+      - "Rigid on-site hours, tightly assigned tasks -> low"
+    possible_evidence: [past_choices_favouring_freelance_or_remote, complaints_about_micromanagement_memory, stated_preference_for_independence]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: stability
+    label: Stability
+    description: >
+      Continuity of the person's current life structure: staying near existing
+      routines, relationships, housing, and commitments; low disruption.
+      Distinct from `financial_security` (money) and `downside_risk` (bad outcomes).
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "A job that lets them keep their flat, partner, and city -> high"
+      - "An option requiring an international move within a month -> very_low"
+    possible_evidence: [relocation_history, stated_importance_of_routine, family_proximity_memory]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: intrinsic_interest
+    label: Intrinsic interest
+    description: >
+      How engaging and enjoyable the day-to-day activity itself would be,
+      independent of outcomes, meaning, or prestige.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Working daily on a problem domain the person seeks out in their spare time -> very_high"
+      - "Administrative work they find dull -> low"
+    possible_evidence: [hobby_and_side_project_memory, stated_topics_of_interest, past_choices_favouring_enjoyed_work_over_pay]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: creative_expression
+    label: Creative expression
+    description: >
+      Room to originate, design, build, or shape something - as opposed to
+      executing a fixed specification.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Greenfield product design with latitude over approach -> high"
+      - "Maintenance work to a strict spec -> low"
+    possible_evidence: [portfolio_of_self_initiated_work, stated_frustration_with_constrained_roles]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: values_alignment
+    label: Values alignment
+    description: >
+      Consistency of the option with the person's explicitly stated principles
+      and the identity they say they want (ethical fit, mission fit, "the kind
+      of person I want to be"). Includes benefit to others/causes they name.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Role at an organisation whose mission the person has named as important -> high"
+      - "Work that conflicts with a stated ethical line -> very_low"
+    possible_evidence: [stated_values, declared_causes, past_choices_that_forfeited_pay_for_mission]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: social_fit
+    label: Social fit
+    description: >
+      Quality of the people and culture the option puts the person among:
+      colleagues, mentors, community; psychological safety; being around people
+      they respect and can learn from.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "A team with strong mentors and a culture the person describes positively -> high"
+      - "A known toxic environment -> very_low"
+    possible_evidence: [past_choices_influenced_by_team, stated_importance_of_colleagues, accounts_of_prior_workplaces]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: location_fit
+    label: Location fit
+    description: >
+      Geographic and logistical fit: proximity to people and places that matter,
+      commute burden, cost and upheaval of any relocation, climate/environment
+      preferences.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "Walking distance from home, no move required -> very_high"
+      - "Requires relocating away from close family the person has said matters -> low"
+    possible_evidence: [stated_location_importance, family_proximity_memory, past_rejection_of_distant_options, commute_complaints]
+    can_be_inferred: true
+    self_report_reliability: high
+
+  - id: health_wellbeing
+    label: Health & wellbeing
+    description: >
+      Effect on physical and mental health: stress load, sleep, hours, recovery
+      time, work-life boundary, physical demands.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "40h/week, protected weekends, low-stress -> high"
+      - "On-call nights, 60h weeks, high-pressure -> low"
+    possible_evidence: [burnout_history_memory, stated_boundaries, past_choices_favouring_sustainable_hours]
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: time_demand
+    label: Time & energy demand
+    description: >
+      Total time and mental energy the option consumes (hours, cognitive load,
+      logistical hassle). Higher demand is worse.
+    direction: cost
+    range: [very_low, very_high]
+    better: lower
+    examples:
+      - "A part-time commitment with light overhead -> very_low demand (good)"
+      - "A full-time role plus a long commute plus heavy prep -> very_high demand (bad)"
+    possible_evidence: [stated_time_constraints, caregiving_memory, parallel_commitments, past_rejection_of_demanding_options]
+    can_be_inferred: true
+    self_report_reliability: high
+
+  - id: downside_risk
+    label: Downside risk
+    description: >
+      Severity multiplied by likelihood of a materially bad outcome if the
+      option is taken (failing, being let go, financial loss, reputational
+      harm, wasted years). Higher is worse. Distinct from `reversibility`
+      (can it be undone) and `financial_security` (income variance).
+    direction: cost
+    range: [very_low, very_high]
+    better: lower
+    anchors: {very_low: 0.00, low: 0.20, moderate: 0.45, high: 0.75, very_high: 1.00}
+    examples:
+      - "Well-established programme with high completion rates -> very_low risk (good)"
+      - "Unfunded venture with a real chance of collapse in a year -> high/very_high risk (bad)"
+    possible_evidence: [past_risk_taking_or_avoidance, stated_risk_attitude, accounts_of_prior_bad_outcomes]
+    can_be_inferred: true
+    self_report_reliability: low
+
+  - id: reversibility
+    label: Reversibility
+    description: >
+      How easily and cheaply the decision can be undone or corrected if it
+      turns out badly - can the person walk it back, or is it a one-way door?
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    examples:
+      - "A 3-month contract they can decline to renew -> very_high"
+      - "Selling a home and emigrating -> very_low"
+    possible_evidence: [past_preference_for_trial_periods, stated_discomfort_with_commitment, hedging_behaviour_in_prior_decisions]
+    can_be_inferred: true
+    self_report_reliability: low
+
+# ---------------------------------------------------------------------------
+# EXTENDED factors: defined for completeness and future use. Present in the
+# taxonomy but given a near-zero population prior weight in traits.yaml v1
+# (rarely decisive across the target decision domains, or low self-report
+# reliability). Promote to core in a later version if data warrants.
+# ---------------------------------------------------------------------------
+extended_factors:
+
+  - id: external_impact
+    label: External impact
+    description: >
+      Magnitude of benefit to other people or a cause beyond the person's own
+      interests and stated identity. Split from `values_alignment` for users
+      for whom altruistic impact is a primary, separately-traded goal.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    can_be_inferred: true
+    self_report_reliability: medium
+
+  - id: social_standing
+    label: Social standing
+    description: >
+      External recognition or prestige the option confers (brand-name
+      employer, title, visible achievement). Included because it demonstrably
+      moves decisions while being systematically under-reported.
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    can_be_inferred: true
+    self_report_reliability: low
+
+  - id: novelty
+    label: Novelty
+    description: >
+      Degree of new experience, change, and stimulation the option brings, for
+      its own sake (distinct from skill growth or interest).
+    direction: benefit
+    range: [very_low, very_high]
+    better: higher
+    can_be_inferred: true
+    self_report_reliability: medium

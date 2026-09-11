@@ -1,0 +1,133 @@
+# MINDTRACE canonical trait model
+# ---------------------------------------------------------------------------
+# The twin's parameters. Two kinds:
+#   1. importance_weights - one per core factor in factors.yaml. The MCDA
+#      WeightVector. Latent parameters of the person's value function.
+#   2. dispositions - a small set of higher-level latent constructs that
+#      MODULATE the MCDA (curve shapes, parallel-twin shift magnitudes) and
+#      that the interview can pin with informative priors.
+#
+# Nothing here is measured directly. Everything is inferred with an explicit
+# posterior and uncertainty (ADR-005). Wide priors: declarations must not
+# masquerade as strong evidence.
+#
+# CHANGING THIS FILE: bump version, CHANGELOG entry, migration + re-derivation
+# if a trait is added/removed or a prior/link changes.
+# ---------------------------------------------------------------------------
+
+version: 1
+released: 2026-09-09
+factor_schema_version: 1   # must match schema/factors.yaml version
+
+# --- 1. Importance weights -------------------------------------------------
+# Representation: theta_i ~ Normal(mu_i, sigma_i^2) on a LOGIT scale.
+#   read-time weight  w_i = softmax(theta)_i   over the factors that are
+#   `known` for the current decision.
+# Gauge fix: theta is constrained mean-zero (weights are only ever interpreted
+#   RELATIVE to each other). See spec/04.
+# Prior: mu = 0 for all (a priori equal importance), sigma wide.
+# `observable`: none are directly observable; listed for the spec's taxonomy.
+# `inferable_from`: signal sources the update step consumes.
+
+importance_weights:
+  prior_defaults: {mu: 0.0, sigma: 1.5}     # applied unless overridden below
+  posterior: normal                          # stored as {mu, sigma} per trait in TwinVersion.trait_snapshot
+  read_transform: softmax_over_known
+  credible_interval: 0.90                     # central 90% of the marginal, mapped through softmax
+
+  traits:
+    - {factor: financial_return,    prior: {mu: 0.15, sigma: 1.4}, self_report_reliability: high}
+    - {factor: financial_security,  prior: {mu: 0.15, sigma: 1.4}, self_report_reliability: high}
+    - {factor: skill_growth,        prior: {mu: 0.20, sigma: 1.4}, self_report_reliability: high}
+    - {factor: option_value,        prior: {mu: 0.05, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: long_term_value,     prior: {mu: 0.05, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: autonomy,            prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: stability,           prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: intrinsic_interest,  prior: {mu: 0.10, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: creative_expression, prior: {mu: -0.10, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: values_alignment,    prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: social_fit,          prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: location_fit,        prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: high}
+    - {factor: health_wellbeing,    prior: {mu: 0.05, sigma: 1.5}, self_report_reliability: medium}
+    - {factor: time_demand,         prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: high}
+    - {factor: downside_risk,       prior: {mu: 0.10, sigma: 1.4}, self_report_reliability: low}
+    - {factor: reversibility,       prior: {mu: 0.00, sigma: 1.5}, self_report_reliability: low}
+    # extended factors: pinned tight to ~0 until promoted
+    - {factor: external_impact,     prior: {mu: -0.60, sigma: 0.6}, self_report_reliability: medium, tier: extended}
+    - {factor: social_standing,     prior: {mu: -0.60, sigma: 0.6}, self_report_reliability: low, tier: extended}
+    - {factor: novelty,             prior: {mu: -0.60, sigma: 0.6}, self_report_reliability: medium, tier: extended}
+
+# --- 2. Dispositions -----------------------------------------------------
+# Representation: p ~ Beta(alpha, beta) on [0,1]. Interview pins these with
+# informative priors; observed decisions update them.
+# Each disposition has a DEFINED mechanical effect - it is not decoration.
+
+dispositions:
+  posterior: beta
+  credible_interval: 0.90
+
+  traits:
+    - id: risk_tolerance
+      description: >
+        General willingness to accept a worse-case outcome in exchange for a
+        better expected or best-case outcome.
+      prior: {alpha: 2.0, beta: 2.0}          # centred 0.5, weak
+      kind: latent
+      inferable_from: [interview_risk_items, observed_choices_between_safe_and_risky_options, stated_risk_attitude]
+      mechanical_effect: >
+        Sets the exponent of the `downside_risk` cost curve and the
+        `financial_security` benefit curve at normalization time (spec/05 s2):
+        gamma = k_risk ^ (2*risk_tolerance - 1), k_risk = 1.7.
+        risk_tolerance 0.5 -> gamma 1 (linear); 0 -> gamma 0.59 (amplifies
+        risk badness and security value); 1 -> gamma 1.7 (dampens both).
+        Symmetric about the neutral point.
+
+    - id: time_discount
+      description: >
+        How steeply the person discounts payoffs that are far in the future
+        relative to near ones. HIGH = present-focused; LOW = patient.
+      prior: {alpha: 2.5, beta: 2.0}          # slight present bias prior
+      kind: latent
+      inferable_from: [interview_intertemporal_items, observed_choices_between_now_and_later_payoffs]
+      mechanical_effect: >
+        Read-time multiplier on `long_term_value` and `option_value`
+        contributions: m = 1 - 0.6 * time_discount. Also scales the "Future
+        You" parallel-twin shift magnitude (ADR-007): larger when time_discount
+        is high (more room to move the person toward patience).
+
+    - id: ambiguity_aversion
+      description: >
+        Discomfort with unknown or unquantifiable outcomes (as opposed to
+        known risky ones).
+      prior: {alpha: 2.5, beta: 2.0}
+      kind: latent
+      inferable_from: [interview_ambiguity_items, observed_preference_for_trial_periods, hedging_in_past_decisions]
+      mechanical_effect: >
+        Raises the effective weight of `reversibility` and tightens the
+        UNCERTAIN coverage gate for this user:
+        COVERAGE_MIN_user = COVERAGE_MIN + 0.15 * ambiguity_aversion.
+
+    - id: effort_tolerance
+      description: >
+        Willingness to sustain high time and energy demand in exchange for
+        gains on other factors.
+      prior: {alpha: 2.0, beta: 2.0}
+      kind: latent
+      inferable_from: [interview_effort_items, observed_acceptance_of_demanding_options, burnout_history]
+      mechanical_effect: >
+        Sets the `time_demand` cost curve exponent:
+        gamma = k_effort ^ (2*effort_tolerance - 1), k_effort = 1.6.
+        effort_tolerance 0.5 -> gamma 1; 0 -> gamma 0.625 (time demand feels
+        heavier); 1 -> gamma 1.6 (more tolerant).
+
+# --- 3. Reporting -------------------------------------------------------
+# For each trait the API/UI exposes:
+#   value            - posterior mean, mapped to the reporting scale
+#   confidence        - 1 - normalized_sd, blended with an effective-sample-size
+#                       term: conf = (1 - sd/sd_prior) ^ 0.5 clipped to [0,1]
+#   credible_interval - [low, high] from the 90% marginal
+#   evidence_count    - number of Evidence edges supporting this trait
+#   source            - `declared` if only interview priors so far, else `inferred`
+report:
+  low_confidence_threshold: 0.35   # below this the UI shows "still learning"
+  min_evidence_for_inferred: 2     # fewer edges -> source stays `declared`
