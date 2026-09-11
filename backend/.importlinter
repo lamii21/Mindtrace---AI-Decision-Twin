@@ -4,9 +4,9 @@
 # INI format (import-linter parses `.importlinter` as INI, not TOML - a
 # `pyproject.toml`-based `[tool.importlinter]` config uses TOML instead).
 #
-# M1 note: only mindtrace.{domain,api,config} exist yet. The layered contract
+# M2 note: mindtrace.{domain,events,api,config} exist now. The layered contract
 # lists the modules present today; expand it as engines/services/db/... land in
-# M2+. The forbidden contracts already name every future forbidden dependency so
+# M3+. The forbidden contracts already name every future forbidden dependency so
 # a premature import fails immediately.
 
 [importlinter]
@@ -42,6 +42,34 @@ forbidden_modules =
     mindtrace.observability
     mindtrace.workers
 
+[importlinter:contract:events-is-pure]
+name = Events depends only on domain: no frameworks, no outward mindtrace imports
+type = forbidden
+source_modules =
+    mindtrace.events
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    numpy
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.llm
+    mindtrace.db
+    mindtrace.security
+    mindtrace.observability
+    mindtrace.workers
+
 [importlinter:contract:config-is-thin]
 name = Config stays thin: only depends on domain
 type = forbidden
@@ -55,6 +83,7 @@ forbidden_modules =
     mindtrace.api
     mindtrace.services
     mindtrace.engines
+    mindtrace.events
     mindtrace.llm
     mindtrace.db
 
@@ -63,6 +92,7 @@ name = Provider SDKs only under mindtrace.llm.providers
 type = forbidden
 source_modules =
     mindtrace.domain
+    mindtrace.events
     mindtrace.api
     mindtrace.config
 forbidden_modules =
@@ -72,8 +102,9 @@ forbidden_modules =
     langchain_core
 
 [importlinter:contract:layers]
-name = Layered architecture (M1 subset)
+name = Layered architecture (M2 subset)
 type = layers
 layers =
     mindtrace.api
+    mindtrace.events
     mindtrace.domain
