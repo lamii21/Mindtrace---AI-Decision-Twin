@@ -1,0 +1,1244 @@
+{
+  "factors": {
+    "core": [
+      {
+        "anchors": {
+          "high": 0.72,
+          "low": 0.3,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Net monetary effect over the relevant horizon: income, savings, equity, or resale value gained, minus direct costs. Signed - a costly option with no return scores very_low; a well-paid role or an appreciating asset scores high/very_high.",
+        "direction": "benefit",
+        "examples": [
+          "Internship A pays 1400 EUR/mo, Internship B pays 900 EUR/mo -> A ~ high, B ~ moderate",
+          "A 12k EUR course with no near-term income effect -> very_low"
+        ],
+        "has_anchor_override": true,
+        "id": "financial_return",
+        "label": "Financial return",
+        "possible_evidence": [
+          "decision_records_with_stated_salary",
+          "budget_constraints_memory",
+          "past_choices_favouring_pay"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Predictability and downside protection of the person's finances if this option is taken: stable income, runway, low chance of a shortfall. Distinct from `financial_return` (amount) - this is variance and safety.",
+        "direction": "benefit",
+        "examples": [
+          "Permanent contract vs 3-month freelance gig -> permanent ~ high, freelance ~ low",
+          "Taking a role that depletes savings to zero -> very_low"
+        ],
+        "has_anchor_override": false,
+        "id": "financial_security",
+        "label": "Financial security",
+        "possible_evidence": [
+          "dependants_memory",
+          "debt_memory",
+          "past_choices_favouring_stable_income",
+          "emergency_fund_statements"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Degree to which the option builds transferable capabilities (technical, professional, interpersonal) that remain valuable outside this specific context.",
+        "direction": "benefit",
+        "examples": [
+          "Backend internship using a stack the person wants to learn -> high",
+          "Repeating work they have already mastered -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "skill_growth",
+        "label": "Skill growth",
+        "possible_evidence": [
+          "stated_learning_goals",
+          "past_choices_favouring_new_tech",
+          "skills_inventory_gaps"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "How much the option widens the person's FUTURE choice set - doors opened, networks, credentials, mobility - independent of skill gained or money.",
+        "direction": "benefit",
+        "examples": [
+          "A role at a well-known company that many future employers recognise -> high",
+          "A niche path that locks the person into one narrow track -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "option_value",
+        "label": "Option value",
+        "possible_evidence": [
+          "past_choices_favouring_flexibility",
+          "stated_uncertainty_about_direction",
+          "network_growth_memory"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Benefit that compounds or persists over years rather than being consumed once: equity that vests, a durable asset, a lasting relationship, health capital, a reputation. Contrast with one-off gains.",
+        "direction": "benefit",
+        "examples": [
+          "Equity vesting over 4 years -> high; a one-time signing bonus -> low on THIS factor",
+          "A qualification with lifelong recognition -> high"
+        ],
+        "has_anchor_override": false,
+        "id": "long_term_value",
+        "label": "Long-term value",
+        "possible_evidence": [
+          "past_choices_favouring_deferred_payoff",
+          "stated_long_term_goals"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Control over how, when, where and on what the person works or acts: self-direction, flexible hours, freedom from close supervision.",
+        "direction": "benefit",
+        "examples": [
+          "Remote role, own choice of tools and schedule -> very_high",
+          "Rigid on-site hours, tightly assigned tasks -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "autonomy",
+        "label": "Autonomy",
+        "possible_evidence": [
+          "past_choices_favouring_freelance_or_remote",
+          "complaints_about_micromanagement_memory",
+          "stated_preference_for_independence"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Continuity of the person's current life structure: staying near existing routines, relationships, housing, and commitments; low disruption. Distinct from `financial_security` (money) and `downside_risk` (bad outcomes).",
+        "direction": "benefit",
+        "examples": [
+          "A job that lets them keep their flat, partner, and city -> high",
+          "An option requiring an international move within a month -> very_low"
+        ],
+        "has_anchor_override": false,
+        "id": "stability",
+        "label": "Stability",
+        "possible_evidence": [
+          "relocation_history",
+          "stated_importance_of_routine",
+          "family_proximity_memory"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "How engaging and enjoyable the day-to-day activity itself would be, independent of outcomes, meaning, or prestige.",
+        "direction": "benefit",
+        "examples": [
+          "Working daily on a problem domain the person seeks out in their spare time -> very_high",
+          "Administrative work they find dull -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "intrinsic_interest",
+        "label": "Intrinsic interest",
+        "possible_evidence": [
+          "hobby_and_side_project_memory",
+          "stated_topics_of_interest",
+          "past_choices_favouring_enjoyed_work_over_pay"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Room to originate, design, build, or shape something - as opposed to executing a fixed specification.",
+        "direction": "benefit",
+        "examples": [
+          "Greenfield product design with latitude over approach -> high",
+          "Maintenance work to a strict spec -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "creative_expression",
+        "label": "Creative expression",
+        "possible_evidence": [
+          "portfolio_of_self_initiated_work",
+          "stated_frustration_with_constrained_roles"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Consistency of the option with the person's explicitly stated principles and the identity they say they want (ethical fit, mission fit, \"the kind of person I want to be\"). Includes benefit to others/causes they name.",
+        "direction": "benefit",
+        "examples": [
+          "Role at an organisation whose mission the person has named as important -> high",
+          "Work that conflicts with a stated ethical line -> very_low"
+        ],
+        "has_anchor_override": false,
+        "id": "values_alignment",
+        "label": "Values alignment",
+        "possible_evidence": [
+          "stated_values",
+          "declared_causes",
+          "past_choices_that_forfeited_pay_for_mission"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Quality of the people and culture the option puts the person among: colleagues, mentors, community; psychological safety; being around people they respect and can learn from.",
+        "direction": "benefit",
+        "examples": [
+          "A team with strong mentors and a culture the person describes positively -> high",
+          "A known toxic environment -> very_low"
+        ],
+        "has_anchor_override": false,
+        "id": "social_fit",
+        "label": "Social fit",
+        "possible_evidence": [
+          "past_choices_influenced_by_team",
+          "stated_importance_of_colleagues",
+          "accounts_of_prior_workplaces"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Geographic and logistical fit: proximity to people and places that matter, commute burden, cost and upheaval of any relocation, climate/environment preferences.",
+        "direction": "benefit",
+        "examples": [
+          "Walking distance from home, no move required -> very_high",
+          "Requires relocating away from close family the person has said matters -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "location_fit",
+        "label": "Location fit",
+        "possible_evidence": [
+          "stated_location_importance",
+          "family_proximity_memory",
+          "past_rejection_of_distant_options",
+          "commute_complaints"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Effect on physical and mental health: stress load, sleep, hours, recovery time, work-life boundary, physical demands.",
+        "direction": "benefit",
+        "examples": [
+          "40h/week, protected weekends, low-stress -> high",
+          "On-call nights, 60h weeks, high-pressure -> low"
+        ],
+        "has_anchor_override": false,
+        "id": "health_wellbeing",
+        "label": "Health & wellbeing",
+        "possible_evidence": [
+          "burnout_history_memory",
+          "stated_boundaries",
+          "past_choices_favouring_sustainable_hours"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "lower",
+        "can_be_inferred": true,
+        "description": "Total time and mental energy the option consumes (hours, cognitive load, logistical hassle). Higher demand is worse.",
+        "direction": "cost",
+        "examples": [
+          "A part-time commitment with light overhead -> very_low demand (good)",
+          "A full-time role plus a long commute plus heavy prep -> very_high demand (bad)"
+        ],
+        "has_anchor_override": false,
+        "id": "time_demand",
+        "label": "Time & energy demand",
+        "possible_evidence": [
+          "stated_time_constraints",
+          "caregiving_memory",
+          "parallel_commitments",
+          "past_rejection_of_demanding_options"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.2,
+          "moderate": 0.45,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "lower",
+        "can_be_inferred": true,
+        "description": "Severity multiplied by likelihood of a materially bad outcome if the option is taken (failing, being let go, financial loss, reputational harm, wasted years). Higher is worse. Distinct from `reversibility` (can it be undone) and `financial_security` (income variance).",
+        "direction": "cost",
+        "examples": [
+          "Well-established programme with high completion rates -> very_low risk (good)",
+          "Unfunded venture with a real chance of collapse in a year -> high/very_high risk (bad)"
+        ],
+        "has_anchor_override": true,
+        "id": "downside_risk",
+        "label": "Downside risk",
+        "possible_evidence": [
+          "past_risk_taking_or_avoidance",
+          "stated_risk_attitude",
+          "accounts_of_prior_bad_outcomes"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "low",
+        "tier": "core"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "How easily and cheaply the decision can be undone or corrected if it turns out badly - can the person walk it back, or is it a one-way door?",
+        "direction": "benefit",
+        "examples": [
+          "A 3-month contract they can decline to renew -> very_high",
+          "Selling a home and emigrating -> very_low"
+        ],
+        "has_anchor_override": false,
+        "id": "reversibility",
+        "label": "Reversibility",
+        "possible_evidence": [
+          "past_preference_for_trial_periods",
+          "stated_discomfort_with_commitment",
+          "hedging_behaviour_in_prior_decisions"
+        ],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "low",
+        "tier": "core"
+      }
+    ],
+    "extended": [
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Magnitude of benefit to other people or a cause beyond the person's own interests and stated identity. Split from `values_alignment` for users for whom altruistic impact is a primary, separately-traded goal.",
+        "direction": "benefit",
+        "examples": [],
+        "has_anchor_override": false,
+        "id": "external_impact",
+        "label": "External impact",
+        "possible_evidence": [],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "extended"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "External recognition or prestige the option confers (brand-name employer, title, visible achievement). Included because it demonstrably moves decisions while being systematically under-reported.",
+        "direction": "benefit",
+        "examples": [],
+        "has_anchor_override": false,
+        "id": "social_standing",
+        "label": "Social standing",
+        "possible_evidence": [],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "low",
+        "tier": "extended"
+      },
+      {
+        "anchors": {
+          "high": 0.75,
+          "low": 0.25,
+          "moderate": 0.5,
+          "very_high": 1.0,
+          "very_low": 0.0
+        },
+        "better": "higher",
+        "can_be_inferred": true,
+        "description": "Degree of new experience, change, and stimulation the option brings, for its own sake (distinct from skill growth or interest).",
+        "direction": "benefit",
+        "examples": [],
+        "has_anchor_override": false,
+        "id": "novelty",
+        "label": "Novelty",
+        "possible_evidence": [],
+        "range_max": "very_high",
+        "range_min": "very_low",
+        "self_report_reliability": "medium",
+        "tier": "extended"
+      }
+    ],
+    "released": "2026-09-09",
+    "scale": {
+      "default_anchors": {
+        "high": 0.75,
+        "low": 0.25,
+        "moderate": 0.5,
+        "very_high": 1.0,
+        "very_low": 0.0
+      },
+      "levels": [
+        "very_low",
+        "low",
+        "moderate",
+        "high",
+        "very_high"
+      ]
+    },
+    "version": 1
+  },
+  "interview": {
+    "config": {
+      "adaptive_suffix_max": 12,
+      "consistency_check_item_ids": [
+        "p03r",
+        "p07r"
+      ],
+      "fixed_prefix_items": 12,
+      "likert_warmup_factors": [
+        "financial_return",
+        "financial_security",
+        "skill_growth",
+        "location_fit",
+        "time_demand"
+      ],
+      "logistic_scale_s": 0.6,
+      "pseudocount_kappa": 1.5,
+      "target_total_max": 24,
+      "target_total_min": 18
+    },
+    "disposition": [
+      {
+        "id": "d01",
+        "keyed_field": "risky_option",
+        "keyed_option": "B",
+        "prompt_a": "Take EUR 1000 for certain.",
+        "prompt_b": "A coin flip: EUR 2500 if heads, EUR 0 if tails.",
+        "target": "risk_tolerance",
+        "type": "gamble"
+      },
+      {
+        "id": "d02",
+        "keyed_field": "risky_option",
+        "keyed_option": "B",
+        "prompt_a": "A career move with a modest, near-certain improvement.",
+        "prompt_b": "A career move: 55% chance it's excellent, 45% chance it's worse than now.",
+        "target": "risk_tolerance",
+        "type": "gamble"
+      },
+      {
+        "id": "d03",
+        "keyed_field": "patient_option",
+        "keyed_option": "B",
+        "prompt_a": "A benefit worth a lot to you, available now.",
+        "prompt_b": "A benefit worth ~70% more to you, but only in 3 years.",
+        "target": "time_discount",
+        "type": "intertemporal"
+      },
+      {
+        "id": "d04",
+        "keyed_field": "patient_option",
+        "keyed_option": "B",
+        "prompt_a": "Spend this year on visible, immediate wins.",
+        "prompt_b": "Spend this year on foundations that pay off from year 3 onward.",
+        "target": "time_discount",
+        "type": "intertemporal"
+      },
+      {
+        "id": "d05",
+        "keyed_field": "ambiguity_seeking_option",
+        "keyed_option": "B",
+        "prompt_a": "An option whose odds of success are clearly known to be 60%.",
+        "prompt_b": "An option that experts think is 'probably a bit better than 60%' but nobody can say.",
+        "target": "ambiguity_aversion",
+        "type": "ambiguity"
+      },
+      {
+        "id": "d06",
+        "keyed_field": "ambiguity_seeking_option",
+        "keyed_option": "B",
+        "prompt_a": "A well-mapped path with documented outcomes for people like you.",
+        "prompt_b": "A newer path with little track record but a plausible strong upside.",
+        "target": "ambiguity_aversion",
+        "type": "ambiguity"
+      },
+      {
+        "id": "d07",
+        "keyed_field": "high_effort_option",
+        "keyed_option": "B",
+        "prompt_a": "Achieve a good result with sustainable, steady effort.",
+        "prompt_b": "Achieve a great result but only through sustained long hours and intensity.",
+        "target": "effort_tolerance",
+        "type": "effort"
+      },
+      {
+        "id": "d08",
+        "keyed_field": "high_effort_option",
+        "keyed_option": "B",
+        "prompt_a": "A lighter commitment alongside the rest of your life.",
+        "prompt_b": "An all-in commitment that crowds out most other things for a while.",
+        "target": "effort_tolerance",
+        "type": "effort"
+      }
+    ],
+    "factor_schema_version": 1,
+    "pairwise": [
+      {
+        "covers": [
+          "financial_return",
+          "time_demand",
+          "health_wellbeing"
+        ],
+        "id": "p01",
+        "profile_a": {
+          "financial_return": "high",
+          "health_wellbeing": "low",
+          "time_demand": "high"
+        },
+        "profile_b": {
+          "financial_return": "low",
+          "health_wellbeing": "high",
+          "time_demand": "low"
+        },
+        "prompt_a": "A role that pays well but runs long hours with weekend work.",
+        "prompt_b": "A role that pays modestly but protects your evenings and weekends.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "skill_growth",
+          "financial_return"
+        ],
+        "id": "p02",
+        "profile_a": {
+          "financial_return": "low",
+          "skill_growth": "very_high"
+        },
+        "profile_b": {
+          "financial_return": "high",
+          "skill_growth": "very_low"
+        },
+        "prompt_a": "Work where you learn a lot but the pay is low for a year.",
+        "prompt_b": "Work where you already know everything but it pays well now.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "stability",
+          "location_fit",
+          "financial_security",
+          "intrinsic_interest"
+        ],
+        "id": "p03",
+        "profile_a": {
+          "financial_security": "high",
+          "intrinsic_interest": "moderate",
+          "location_fit": "very_high",
+          "stability": "high"
+        },
+        "profile_b": {
+          "financial_security": "low",
+          "intrinsic_interest": "very_high",
+          "location_fit": "very_low",
+          "stability": "very_low"
+        },
+        "prompt_a": "A stable permanent job near your family and friends.",
+        "prompt_b": "An exciting job in another country on a 1-year contract.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "stability",
+          "location_fit",
+          "financial_security",
+          "intrinsic_interest"
+        ],
+        "id": "p03r",
+        "profile_a": {
+          "financial_security": "low",
+          "intrinsic_interest": "very_high",
+          "location_fit": "very_low",
+          "stability": "very_low"
+        },
+        "profile_b": {
+          "financial_security": "high",
+          "intrinsic_interest": "moderate",
+          "location_fit": "very_high",
+          "stability": "high"
+        },
+        "prompt_a": "An exciting job in another country on a 1-year contract.",
+        "prompt_b": "A stable permanent job near your family and friends.",
+        "role": "consistency_check",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "autonomy",
+          "social_fit"
+        ],
+        "id": "p04",
+        "profile_a": {
+          "autonomy": "very_high",
+          "social_fit": "moderate"
+        },
+        "profile_b": {
+          "autonomy": "low",
+          "social_fit": "very_high"
+        },
+        "prompt_a": "A job with a lot of freedom over how and when you work, average team.",
+        "prompt_b": "A job with a rigid schedule but outstanding colleagues and mentors.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "creative_expression",
+          "downside_risk",
+          "reversibility"
+        ],
+        "id": "p05",
+        "profile_a": {
+          "creative_expression": "very_high",
+          "downside_risk": "high",
+          "reversibility": "moderate"
+        },
+        "profile_b": {
+          "creative_expression": "very_low",
+          "downside_risk": "very_low",
+          "reversibility": "high"
+        },
+        "prompt_a": "Build something new from scratch, with real risk it doesn't work out.",
+        "prompt_b": "Maintain a proven system, safe and predictable, little room to create.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "values_alignment",
+          "financial_return"
+        ],
+        "id": "p06",
+        "profile_a": {
+          "financial_return": "moderate",
+          "values_alignment": "very_high"
+        },
+        "profile_b": {
+          "financial_return": "very_high",
+          "values_alignment": "low"
+        },
+        "prompt_a": "Work that clearly helps people and matches your values, ordinary pay.",
+        "prompt_b": "Work you're indifferent about ethically, but it pays very well.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "option_value",
+          "intrinsic_interest"
+        ],
+        "id": "p07",
+        "profile_a": {
+          "intrinsic_interest": "low",
+          "option_value": "very_high"
+        },
+        "profile_b": {
+          "intrinsic_interest": "very_high",
+          "option_value": "low"
+        },
+        "prompt_a": "A prestigious employer that opens many future doors; you're unsure you'll enjoy it.",
+        "prompt_b": "A lesser-known place doing work you find genuinely interesting day to day.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "option_value",
+          "intrinsic_interest"
+        ],
+        "id": "p07r",
+        "profile_a": {
+          "intrinsic_interest": "very_high",
+          "option_value": "low"
+        },
+        "profile_b": {
+          "intrinsic_interest": "low",
+          "option_value": "very_high"
+        },
+        "prompt_a": "A lesser-known place doing work you find genuinely interesting day to day.",
+        "prompt_b": "A prestigious employer that opens many future doors; you're unsure you'll enjoy it.",
+        "role": "consistency_check",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "reversibility",
+          "financial_return"
+        ],
+        "id": "p08",
+        "profile_a": {
+          "financial_return": "moderate",
+          "reversibility": "very_high"
+        },
+        "profile_b": {
+          "financial_return": "high",
+          "reversibility": "very_low"
+        },
+        "prompt_a": "A choice you can easily walk back if it goes wrong.",
+        "prompt_b": "A choice with a slightly better upside that is very hard to undo.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "long_term_value",
+          "time_demand",
+          "financial_return"
+        ],
+        "id": "p09",
+        "profile_a": {
+          "financial_return": "moderate",
+          "long_term_value": "very_high",
+          "time_demand": "high"
+        },
+        "profile_b": {
+          "financial_return": "high",
+          "long_term_value": "very_low",
+          "time_demand": "very_low"
+        },
+        "prompt_a": "A demanding role that builds durable, compounding advantages over years.",
+        "prompt_b": "An easy role with a nice one-off bonus and no lasting benefit.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "financial_return",
+          "financial_security"
+        ],
+        "id": "p10",
+        "profile_a": {
+          "financial_return": "very_high",
+          "financial_security": "very_low"
+        },
+        "profile_b": {
+          "financial_return": "moderate",
+          "financial_security": "very_high"
+        },
+        "prompt_a": "Great pay, but the income could vanish with little warning.",
+        "prompt_b": "Lower pay you can absolutely count on every month.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "skill_growth",
+          "health_wellbeing",
+          "time_demand"
+        ],
+        "id": "p11",
+        "profile_a": {
+          "health_wellbeing": "low",
+          "skill_growth": "very_high",
+          "time_demand": "high"
+        },
+        "profile_b": {
+          "health_wellbeing": "very_high",
+          "skill_growth": "low",
+          "time_demand": "low"
+        },
+        "prompt_a": "A role that stretches your skills hard but leaves you drained.",
+        "prompt_b": "A role well within your skills that keeps you rested and balanced.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "location_fit",
+          "skill_growth",
+          "option_value"
+        ],
+        "id": "p12",
+        "profile_a": {
+          "location_fit": "very_low",
+          "option_value": "high",
+          "skill_growth": "high"
+        },
+        "profile_b": {
+          "location_fit": "very_high",
+          "option_value": "moderate",
+          "skill_growth": "moderate"
+        },
+        "prompt_a": "Move to a great opportunity in a city you don't know.",
+        "prompt_b": "A merely good opportunity where you already live.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "autonomy",
+          "creative_expression",
+          "social_fit"
+        ],
+        "id": "p13",
+        "profile_a": {
+          "autonomy": "very_high",
+          "creative_expression": "high",
+          "social_fit": "low"
+        },
+        "profile_b": {
+          "autonomy": "moderate",
+          "creative_expression": "moderate",
+          "social_fit": "very_high"
+        },
+        "prompt_a": "Autonomy and creative latitude, but you're mostly on your own.",
+        "prompt_b": "Less freedom, but a strong supportive team around you.",
+        "role": "standard",
+        "type": "pairwise"
+      },
+      {
+        "covers": [
+          "stability",
+          "financial_security",
+          "skill_growth"
+        ],
+        "id": "p14",
+        "profile_a": {
+          "financial_security": "high",
+          "skill_growth": "low",
+          "stability": "very_high"
+        },
+        "profile_b": {
+          "financial_security": "moderate",
+          "skill_growth": "very_high",
+          "stability": "low"
+        },
+        "prompt_a": "Secure, stable, and comfortable - not much changes year to year.",
+        "prompt_b": "Less secure, but you're learning and growing constantly.",
+        "role": "standard",
+        "type": "pairwise"
+      }
+    ],
+    "released": "2026-09-09",
+    "version": 1
+  },
+  "traits": {
+    "disposition_credible_interval": 0.9,
+    "dispositions": [
+      {
+        "description": "General willingness to accept a worse-case outcome in exchange for a better expected or best-case outcome.",
+        "id": "risk_tolerance",
+        "inferable_from": [
+          "interview_risk_items",
+          "observed_choices_between_safe_and_risky_options",
+          "stated_risk_attitude"
+        ],
+        "kind": "latent",
+        "mechanical_effect": "Sets the exponent of the `downside_risk` cost curve and the `financial_security` benefit curve at normalization time (spec/05 s2): gamma = k_risk ^ (2*risk_tolerance - 1), k_risk = 1.7. risk_tolerance 0.5 -> gamma 1 (linear); 0 -> gamma 0.59 (amplifies risk badness and security value); 1 -> gamma 1.7 (dampens both). Symmetric about the neutral point.",
+        "prior": {
+          "alpha": 2.0,
+          "beta": 2.0
+        }
+      },
+      {
+        "description": "How steeply the person discounts payoffs that are far in the future relative to near ones. HIGH = present-focused; LOW = patient.",
+        "id": "time_discount",
+        "inferable_from": [
+          "interview_intertemporal_items",
+          "observed_choices_between_now_and_later_payoffs"
+        ],
+        "kind": "latent",
+        "mechanical_effect": "Read-time multiplier on `long_term_value` and `option_value` contributions: m = 1 - 0.6 * time_discount. Also scales the \"Future You\" parallel-twin shift magnitude (ADR-007): larger when time_discount is high (more room to move the person toward patience).",
+        "prior": {
+          "alpha": 2.5,
+          "beta": 2.0
+        }
+      },
+      {
+        "description": "Discomfort with unknown or unquantifiable outcomes (as opposed to known risky ones).",
+        "id": "ambiguity_aversion",
+        "inferable_from": [
+          "interview_ambiguity_items",
+          "observed_preference_for_trial_periods",
+          "hedging_in_past_decisions"
+        ],
+        "kind": "latent",
+        "mechanical_effect": "Raises the effective weight of `reversibility` and tightens the UNCERTAIN coverage gate for this user: COVERAGE_MIN_user = COVERAGE_MIN + 0.15 * ambiguity_aversion.",
+        "prior": {
+          "alpha": 2.5,
+          "beta": 2.0
+        }
+      },
+      {
+        "description": "Willingness to sustain high time and energy demand in exchange for gains on other factors.",
+        "id": "effort_tolerance",
+        "inferable_from": [
+          "interview_effort_items",
+          "observed_acceptance_of_demanding_options",
+          "burnout_history"
+        ],
+        "kind": "latent",
+        "mechanical_effect": "Sets the `time_demand` cost curve exponent: gamma = k_effort ^ (2*effort_tolerance - 1), k_effort = 1.6. effort_tolerance 0.5 -> gamma 1; 0 -> gamma 0.625 (time demand feels heavier); 1 -> gamma 1.6 (more tolerant).",
+        "prior": {
+          "alpha": 2.0,
+          "beta": 2.0
+        }
+      }
+    ],
+    "factor_schema_version": 1,
+    "prior_defaults": {
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "read_transform": "softmax_over_known",
+    "released": "2026-09-09",
+    "report": {
+      "low_confidence_threshold": 0.35,
+      "min_evidence_for_inferred": 2
+    },
+    "version": 1,
+    "weight_credible_interval": 0.9,
+    "weights": [
+      {
+        "factor": "financial_return",
+        "prior": {
+          "mu": 0.15,
+          "sigma": 1.4
+        },
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "factor": "financial_security",
+        "prior": {
+          "mu": 0.15,
+          "sigma": 1.4
+        },
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "factor": "skill_growth",
+        "prior": {
+          "mu": 0.2,
+          "sigma": 1.4
+        },
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "factor": "option_value",
+        "prior": {
+          "mu": 0.05,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "long_term_value",
+        "prior": {
+          "mu": 0.05,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "autonomy",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "stability",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "intrinsic_interest",
+        "prior": {
+          "mu": 0.1,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "creative_expression",
+        "prior": {
+          "mu": -0.1,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "values_alignment",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "social_fit",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "location_fit",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "factor": "health_wellbeing",
+        "prior": {
+          "mu": 0.05,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "medium",
+        "tier": "core"
+      },
+      {
+        "factor": "time_demand",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "high",
+        "tier": "core"
+      },
+      {
+        "factor": "downside_risk",
+        "prior": {
+          "mu": 0.1,
+          "sigma": 1.4
+        },
+        "self_report_reliability": "low",
+        "tier": "core"
+      },
+      {
+        "factor": "reversibility",
+        "prior": {
+          "mu": 0.0,
+          "sigma": 1.5
+        },
+        "self_report_reliability": "low",
+        "tier": "core"
+      },
+      {
+        "factor": "external_impact",
+        "prior": {
+          "mu": -0.6,
+          "sigma": 0.6
+        },
+        "self_report_reliability": "medium",
+        "tier": "extended"
+      },
+      {
+        "factor": "social_standing",
+        "prior": {
+          "mu": -0.6,
+          "sigma": 0.6
+        },
+        "self_report_reliability": "low",
+        "tier": "extended"
+      },
+      {
+        "factor": "novelty",
+        "prior": {
+          "mu": -0.6,
+          "sigma": 0.6
+        },
+        "self_report_reliability": "medium",
+        "tier": "extended"
+      }
+    ]
+  }
+}
