@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindtrace.local/schema/traits.schema.json",
+  "title": "MINDTRACE trait model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "released", "factor_schema_version", "importance_weights", "dispositions", "report"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "released": { "type": "string", "format": "date" },
+    "factor_schema_version": { "type": "integer", "minimum": 1 },
+    "importance_weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prior_defaults", "posterior", "read_transform", "credible_interval", "traits"],
+      "properties": {
+        "prior_defaults": { "$ref": "#/$defs/normalPrior" },
+        "posterior": { "const": "normal" },
+        "read_transform": { "type": "string", "minLength": 1 },
+        "credible_interval": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "traits": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["factor", "prior", "self_report_reliability"],
+            "properties": {
+              "factor": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "prior": { "$ref": "#/$defs/normalPrior" },
+              "self_report_reliability": { "enum": ["high", "medium", "low"] },
+              "tier": { "const": "extended" }
+            }
+          }
+        }
+      }
+    },
+    "dispositions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posterior", "credible_interval", "traits"],
+      "properties": {
+        "posterior": { "const": "beta" },
+        "credible_interval": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "traits": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "description", "prior", "kind", "inferable_from", "mechanical_effect"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "description": { "type": "string", "minLength": 1 },
+              "prior": { "$ref": "#/$defs/betaPrior" },
+              "kind": { "enum": ["latent"] },
+              "inferable_from": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+              "mechanical_effect": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low_confidence_threshold", "min_evidence_for_inferred"],
+      "properties": {
+        "low_confidence_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_evidence_for_inferred": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "normalPrior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mu", "sigma"],
+      "properties": {
+        "mu": { "type": "number" },
+        "sigma": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "betaPrior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alpha", "beta"],
+      "properties": {
+        "alpha": { "type": "number", "exclusiveMinimum": 0 },
+        "beta": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    }
+  }
+}

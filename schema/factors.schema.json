@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindtrace.local/schema/factors.schema.json",
+  "title": "MINDTRACE factor taxonomy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "released", "scale", "factors"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "released": { "type": "string", "format": "date" },
+    "scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["levels", "default_anchors"],
+      "properties": {
+        "levels": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z_]+$" }
+        },
+        "default_anchors": {
+          "type": "object",
+          "minProperties": 2,
+          "additionalProperties": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        }
+      }
+    },
+    "factors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/coreFactor" }
+    },
+    "extended_factors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/extendedFactor" }
+    }
+  },
+  "$defs": {
+    "level": { "type": "string", "pattern": "^[a-z_]+$" },
+    "anchors": {
+      "type": "object",
+      "minProperties": 2,
+      "additionalProperties": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+    },
+    "baseFactor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "description", "direction", "range", "better", "can_be_inferred", "self_report_reliability"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "direction": { "enum": ["benefit", "cost"] },
+        "range": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/level" }
+        },
+        "better": { "enum": ["higher", "lower"] },
+        "anchors": { "$ref": "#/$defs/anchors" },
+        "examples": { "type": "array", "items": { "type": "string" } },
+        "possible_evidence": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+        "can_be_inferred": { "type": "boolean" },
+        "self_report_reliability": { "enum": ["high", "medium", "low"] }
+      }
+    },
+    "coreFactor": {
+      "allOf": [{ "$ref": "#/$defs/baseFactor" }],
+      "required": ["examples", "possible_evidence"]
+    },
+    "extendedFactor": { "$ref": "#/$defs/baseFactor" }
+  }
+}

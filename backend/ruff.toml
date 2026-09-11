@@ -1,0 +1,39 @@
+# MINDTRACE backend lint/format config. See docs/09-testing-strategy.md s5.
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[lint]
+select = [
+    "E", "W",      # pycodestyle
+    "F",           # pyflakes
+    "I",           # isort
+    "N",           # pep8-naming
+    "UP",          # pyupgrade
+    "B",           # flake8-bugbear
+    "A",           # flake8-builtins
+    "C4",          # flake8-comprehensions
+    "SIM",         # flake8-simplify
+    "PTH",         # flake8-use-pathlib
+    "RUF",         # ruff-specific
+    "PL",          # pylint
+    "D",           # pydocstyle
+]
+ignore = [
+    "D203",   # one-blank-line-before-class (conflicts with D211)
+    "D213",   # multi-line-summary-second-line (conflicts with D212)
+    "PLR0913", # many-arguments - domain constructors legitimately have several fields
+]
+# flake8-type-checking (TC) is deliberately NOT enabled: several domain/config
+# types (e.g. ScaleLevel inside a pydantic dict field, Path as a pydantic-settings
+# field type) are used only in annotation position syntactically but MUST be
+# resolvable at runtime for pydantic to build its validators. TC's static
+# analysis cannot see that and would suggest moving them behind
+# `if TYPE_CHECKING:`, which breaks pydantic at import time.
+
+[lint.per-file-ignores]
+"tests/**" = ["D", "PLR2004", "S101"]
+"**/__init__.py" = ["D104"]
+
+[lint.pydocstyle]
+convention = "google"

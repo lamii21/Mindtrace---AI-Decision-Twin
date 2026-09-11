@@ -1,0 +1,79 @@
+# Enforces the dependency rules in docs/architecture/01-repository-structure.md s5
+# and ADR-003 (the LLM boundary). CI fails on any violation.
+#
+# INI format (import-linter parses `.importlinter` as INI, not TOML - a
+# `pyproject.toml`-based `[tool.importlinter]` config uses TOML instead).
+#
+# M1 note: only mindtrace.{domain,api,config} exist yet. The layered contract
+# lists the modules present today; expand it as engines/services/db/... land in
+# M2+. The forbidden contracts already name every future forbidden dependency so
+# a premature import fails immediately.
+
+[importlinter]
+root_package = mindtrace
+include_external_packages = True
+
+[importlinter:contract:domain-is-pure]
+name = Domain is pure: no frameworks, no outward mindtrace imports
+type = forbidden
+source_modules =
+    mindtrace.domain
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    numpy
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.events
+    mindtrace.llm
+    mindtrace.db
+    mindtrace.security
+    mindtrace.observability
+    mindtrace.workers
+
+[importlinter:contract:config-is-thin]
+name = Config stays thin: only depends on domain
+type = forbidden
+source_modules =
+    mindtrace.config
+forbidden_modules =
+    fastapi
+    sqlalchemy
+    anthropic
+    openai
+    mindtrace.api
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.llm
+    mindtrace.db
+
+[importlinter:contract:provider-sdks-isolated]
+name = Provider SDKs only under mindtrace.llm.providers
+type = forbidden
+source_modules =
+    mindtrace.domain
+    mindtrace.api
+    mindtrace.config
+forbidden_modules =
+    anthropic
+    openai
+    langchain
+    langchain_core
+
+[importlinter:contract:layers]
+name = Layered architecture (M1 subset)
+type = layers
+layers =
+    mindtrace.api
+    mindtrace.domain

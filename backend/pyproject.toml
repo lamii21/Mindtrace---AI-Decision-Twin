@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mindtrace"
+version = "0.1.0"
+description = "MINDTRACE - an auditable AI decision twin (backend)"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+license = { text = "UNLICENSED" }
+dependencies = [
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.6,<3",
+    "PyYAML>=6.0,<7",
+    "jsonschema>=4.21,<5",
+    "fastapi>=0.115,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.9,<1",
+    "mypy>=1.13,<2",
+    "pytest>=8.3,<9",
+    "pytest-cov>=6.0,<7",
+    "import-linter>=2.1,<3",
+    "hypothesis>=6.115,<7",
+    "httpx2>=2.0,<3",  # starlette.testclient's current transport dependency
+    "types-PyYAML>=6.0,<7",
+    "types-jsonschema>=4.21,<5",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mindtrace"]
+
+# --- pytest --------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+markers = [
+    "golden: locks a serialised representation; update deliberately via MINDTRACE_GOLDEN_UPDATE=1",
+]
+# Fail on any warning mindtrace's own code raises. Third-party internal
+# deprecation churn (starlette/anyio's own lazy-import shim, unrelated to our
+# usage) is explicitly excluded rather than silenced blanket-wide.
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:anyio.*",
+    "ignore::DeprecationWarning:starlette.*",
+]
+
+# --- coverage ----------------------------------------------------------
+[tool.coverage.run]
+source = ["mindtrace"]
+branch = true
+
+[tool.coverage.report]
+# M1 gate: the only substantive logic is the domain layer.
+fail_under = 90
+show_missing = true
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
+
+# --- mypy ------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_unimported = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+# Tests stay typed but without the domain layer's full strictness -
+# fixtures/mutation-based fixtures don't benefit from it.
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_any_unimported = false
+disallow_any_generics = false
+warn_return_any = false
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
