@@ -9,6 +9,14 @@ an LLM provider SDK, or any higher ``mindtrace`` layer -- enforced by
 
 from __future__ import annotations
 
+from mindtrace.domain.decision import (
+    Contribution,
+    DecisionResult,
+    DispositionInputs,
+    FactorReading,
+    FactorVector,
+    WeightVector,
+)
 from mindtrace.domain.enums import (
     BeliefType,
     ChoiceOption,
@@ -82,9 +90,12 @@ __all__ = [
     "BetaPrior",
     "ChoiceOption",
     "ConsentScope",
+    "Contribution",
     "DecisionOutcome",
+    "DecisionResult",
     "DecisionStatus",
     "DispositionId",
+    "DispositionInputs",
     "DispositionItem",
     "DispositionSpec",
     "DomainError",
@@ -96,9 +107,11 @@ __all__ = [
     "EvidenceTag",
     "FactorDirection",
     "FactorId",
+    "FactorReading",
     "FactorSpec",
     "FactorTaxonomy",
     "FactorTier",
+    "FactorVector",
     "ImportanceWeightSpec",
     "InterviewBank",
     "InterviewConfig",
@@ -126,6 +139,7 @@ __all__ = [
     "TraitModel",
     "UncertainReason",
     "UserId",
+    "WeightVector",
     "classify_epistemic_state",
     "load_factor_taxonomy",
     "load_interview_bank",
