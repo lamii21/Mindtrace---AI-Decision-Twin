@@ -2,8 +2,11 @@
 
 Mirrors ``schema/traits.yaml`` (see ``docs/spec/04-trait-model.md``). Two kinds of
 trait: one importance weight per factor (Normal logit posterior) and a small set
-of dispositions (Beta posteriors). M1 loads and validates the declarations only;
-posterior updating is ADR-005 / milestone M3.
+of dispositions (Beta posteriors). M1 loads and validates the declarations only.
+Posterior updating (ADR-005) is ``mindtrace.engines.preference`` (M4); the
+posterior/observation/report value types it consumes and produces live here,
+alongside the priors they start from - the same relationship
+``domain/decision.py``/``engines/mcda`` has.
 """
 
 from __future__ import annotations
@@ -12,7 +15,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from mindtrace.domain._schema_io import read_json, read_yaml, validate_structure
 from mindtrace.domain.enums import FactorTier, PosteriorKind, SelfReportReliability
@@ -300,3 +303,165 @@ def load_trait_model(
     schema = read_json(directory / _SCHEMA_FILE)
     validate_structure(data, schema, source=_DATA_FILE)
     return parse_trait_model(data, taxonomy)
+
+
+# --- Preference engine (M4, ADR-005): posterior state, observations, reports ---------------
+
+
+class WeightPosterior(BaseModel):
+    """`theta_i ~ Normal(mu_i, sigma_i**2)` - a weight's current posterior on the logit scale.
+
+    Identical shape to :class:`NormalPrior`; kept as its own type because a
+    posterior and a prior are different things even when they share a
+    parametrisation (before any evidence, ``mindtrace.engines.preference.prior``
+    builds one from the other, one-to-one).
+    """
+
+    model_config = _FrozenModel
+
+    factor: FactorId
+    mu: float
+    sigma: float
+
+    @field_validator("sigma")
+    @classmethod
+    def _sigma_positive(cls, value: float) -> float:
+        if value <= 0:
+            msg = f"sigma must be > 0, got {value}"
+            raise ValueError(msg)
+        return value
+
+
+class DispositionPosterior(BaseModel):
+    """`p ~ Beta(alpha, beta)` - a disposition's current posterior."""
+
+    model_config = _FrozenModel
+
+    id: DispositionId
+    alpha: float
+    beta: float
+
+    @field_validator("alpha", "beta")
+    @classmethod
+    def _positive(cls, value: float) -> float:
+        if value <= 0:
+            msg = f"Beta parameters must be > 0, got {value}"
+            raise ValueError(msg)
+        return value
+
+
+class PairwiseObservation(BaseModel):
+    """One forced-choice comparison, already reduced to Bradley-Terry input form.
+
+    Spec/04 §3, spec/07 §4.1: a design vector, an outcome, and an observation
+    weight. Turning a real interview answer or observed decision into this shape - which
+    factor levels the compared options had, which direction the choice implies,
+    how to fold "indifferent" into a fractional ``outcome``/``weight`` - is the
+    caller's job (``mindtrace.domain.interview``'s own module docstring reserves
+    that conversion for milestone M8's elicitation session). This type is the
+    engine's actual mathematical contract: nothing about *where* the comparison
+    came from.
+    """
+
+    model_config = _FrozenModel
+
+    design: dict[FactorId, float]
+    outcome: float = Field(ge=0.0, le=1.0)
+    weight: float = Field(gt=0.0, le=1.0)
+
+    @field_validator("design")
+    @classmethod
+    def _design_non_empty(cls, value: dict[FactorId, float]) -> dict[FactorId, float]:
+        if not value:
+            msg = "design must vary at least one factor"
+            raise ValueError(msg)
+        return value
+
+
+class DispositionObservation(BaseModel):
+    """One forced-choice comparison targeting a single disposition (spec/07 §4.2).
+
+    ``outcome`` is already the effective ``y`` the pseudo-count update consumes -
+    including the sign inversion spec/07 §4.2's table requires for
+    ``time_discount``/``ambiguity_aversion`` (the caller's job, per the same
+    M8 boundary noted on :class:`PairwiseObservation`).
+    """
+
+    model_config = _FrozenModel
+
+    target: DispositionId
+    outcome: float = Field(ge=0.0, le=1.0)
+
+
+class PreferencePosterior(BaseModel):
+    """The preference engine's complete, self-contained state.
+
+    Every trait's posterior, plus how many observations have touched each one.
+    This is what a later milestone's persistence layer snapshots into
+    ``TwinVersion.trait_snapshot`` (``docs/architecture/02-domain-model.md`` AG-6) -
+    M4 itself holds no persistence, no `Twin`, no `TwinVersion`.
+    """
+
+    model_config = _FrozenModel
+
+    engine_version: str
+    trait_schema_version: int
+    weights: dict[FactorId, WeightPosterior]
+    dispositions: dict[DispositionId, DispositionPosterior]
+    weight_evidence_count: dict[FactorId, int]
+    disposition_evidence_count: dict[DispositionId, int]
+
+    @model_validator(mode="after")
+    def _validate(self) -> PreferencePosterior:
+        if set(self.weights) != set(self.weight_evidence_count):
+            msg = "weight_evidence_count must have exactly the same keys as weights"
+            raise ValueError(msg)
+        if set(self.dispositions) != set(self.disposition_evidence_count):
+            msg = "disposition_evidence_count must have exactly the same keys as dispositions"
+            raise ValueError(msg)
+        for factor_id, count in self.weight_evidence_count.items():
+            if count < 0:
+                msg = f"evidence count for {factor_id!r} is negative: {count}"
+                raise ValueError(msg)
+        for disposition_id, count in self.disposition_evidence_count.items():
+            if count < 0:
+                msg = f"evidence count for {disposition_id!r} is negative: {count}"
+                raise ValueError(msg)
+        return self
+
+
+class CredibleInterval(BaseModel):
+    """A central marginal interval on a trait's reporting scale (spec/04 §5)."""
+
+    model_config = _FrozenModel
+
+    low: float
+    high: float
+
+    @model_validator(mode="after")
+    def _validate(self) -> CredibleInterval:
+        if self.low > self.high:
+            msg = f"low ({self.low}) must not exceed high ({self.high})"
+            raise ValueError(msg)
+        return self
+
+
+class TraitReport(BaseModel):
+    """One trait's read-side summary, the exact shape spec/04 §5 defines for the API/UI."""
+
+    model_config = _FrozenModel
+
+    id: str
+    value: float
+    confidence: float = Field(ge=0.0, le=1.0)
+    credible_interval: CredibleInterval
+    evidence_count: int = Field(ge=0)
+    source: str  # "declared" | "inferred"
+
+    @field_validator("source")
+    @classmethod
+    def _source_valid(cls, value: str) -> str:
+        if value not in {"declared", "inferred"}:
+            msg = f"source must be 'declared' or 'inferred', got {value!r}"
+            raise ValueError(msg)
+        return value
