@@ -1,0 +1,70 @@
+{
+  "config_version": "1",
+  "contributions": [
+    {
+      "contribution_pct": 38.874709053804004,
+      "factor_id": "skill_growth",
+      "level_a": "very_high",
+      "normalized_value_a": 1.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.2682926829268293,
+      "weight": 0.2682926829268293
+    },
+    {
+      "contribution_pct": 17.67032229718364,
+      "factor_id": "location_fit",
+      "level_a": "very_high",
+      "normalized_value_a": 1.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.12195121951219512,
+      "weight": 0.12195121951219512
+    },
+    {
+      "contribution_pct": 12.439906897217279,
+      "factor_id": "financial_return",
+      "level_a": "high",
+      "normalized_value_a": 0.72,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.08585365853658536,
+      "weight": 0.1951219512195122
+    },
+    {
+      "contribution_pct": 12.198495712914225,
+      "factor_id": "downside_risk",
+      "level_a": "low",
+      "normalized_value_a": 0.7465493010531818,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.0841875662132816,
+      "weight": 0.17073170731707318
+    },
+    {
+      "contribution_pct": 9.98140489028903,
+      "factor_id": "financial_security",
+      "level_a": "high",
+      "normalized_value_a": 0.7824341492594027,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.068886377868147,
+      "weight": 0.12195121951219512
+    },
+    {
+      "contribution_pct": 8.83516114859182,
+      "factor_id": "intrinsic_interest",
+      "level_a": "high",
+      "normalized_value_a": 0.75,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.06097560975609756,
+      "weight": 0.12195121951219512
+    }
+  ],
+  "coverage": 0.7388828507464074,
+  "engine_version": "1",
+  "known_factor_count": 6,
+  "label": "ACCEPT",
+  "margin": 0.49014711481313594,
+  "raw_label": "ACCEPT",
+  "raw_score": 0.690147114813136,
+  "score": 0.690147114813136,
+  "selected_option": null,
+  "total_factor_count": 16,
+  "uncertain_reason": null
+}

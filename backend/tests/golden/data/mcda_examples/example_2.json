@@ -1,0 +1,70 @@
+{
+  "config_version": "1",
+  "contributions": [
+    {
+      "contribution_pct": -23.880597014925375,
+      "factor_id": "financial_return",
+      "level_a": "very_low",
+      "normalized_value_a": 0.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.20512820512820515,
+      "weight": 0.20512820512820515
+    },
+    {
+      "contribution_pct": -20.8955223880597,
+      "factor_id": "downside_risk",
+      "level_a": "very_high",
+      "normalized_value_a": 0.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.1794871794871795,
+      "weight": 0.1794871794871795
+    },
+    {
+      "contribution_pct": -16.41791044776119,
+      "factor_id": "skill_growth",
+      "level_a": "low",
+      "normalized_value_a": 0.25,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.14102564102564102,
+      "weight": 0.28205128205128205
+    },
+    {
+      "contribution_pct": -14.925373134328355,
+      "factor_id": "financial_security",
+      "level_a": "very_low",
+      "normalized_value_a": 0.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.1282051282051282,
+      "weight": 0.1282051282051282
+    },
+    {
+      "contribution_pct": -14.925373134328355,
+      "factor_id": "location_fit",
+      "level_a": "very_low",
+      "normalized_value_a": 0.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.1282051282051282,
+      "weight": 0.1282051282051282
+    },
+    {
+      "contribution_pct": -8.955223880597014,
+      "factor_id": "stability",
+      "level_a": "very_low",
+      "normalized_value_a": 0.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.07692307692307693,
+      "weight": 0.07692307692307693
+    }
+  ],
+  "coverage": 0.7028397848563387,
+  "engine_version": "1",
+  "known_factor_count": 6,
+  "label": "REJECT",
+  "margin": 0.6589743589743591,
+  "raw_label": "REJECT",
+  "raw_score": -0.858974358974359,
+  "score": -0.858974358974359,
+  "selected_option": null,
+  "total_factor_count": 16,
+  "uncertain_reason": null
+}

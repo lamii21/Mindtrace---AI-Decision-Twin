@@ -1,0 +1,79 @@
+{
+  "config_version": "1",
+  "contributions": [
+    {
+      "contribution_pct": 34.28041569615407,
+      "factor_id": "skill_growth",
+      "level_a": "very_high",
+      "normalized_value_a": 1.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.2558139534883721,
+      "weight": 0.2558139534883721
+    },
+    {
+      "contribution_pct": 15.582007134615484,
+      "factor_id": "intrinsic_interest",
+      "level_a": "very_high",
+      "normalized_value_a": 1.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.11627906976744186,
+      "weight": 0.11627906976744186
+    },
+    {
+      "contribution_pct": 12.465605707692388,
+      "factor_id": "autonomy",
+      "level_a": "very_high",
+      "normalized_value_a": 1.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.09302325581395349,
+      "weight": 0.09302325581395349
+    },
+    {
+      "contribution_pct": -12.32249460069339,
+      "factor_id": "downside_risk",
+      "level_a": "high",
+      "normalized_value_a": 0.2175658507405973,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.09195530441003809,
+      "weight": 0.16279069767441862
+    },
+    {
+      "contribution_pct": -9.972484566153911,
+      "factor_id": "financial_return",
+      "level_a": "low",
+      "normalized_value_a": 0.3,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.07441860465116279,
+      "weight": 0.18604651162790697
+    },
+    {
+      "contribution_pct": 9.34920428076929,
+      "factor_id": "reversibility",
+      "level_a": "very_high",
+      "normalized_value_a": 1.0,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.06976744186046512,
+      "weight": 0.06976744186046512
+    },
+    {
+      "contribution_pct": -6.027788013921469,
+      "factor_id": "financial_security",
+      "level_a": "low",
+      "normalized_value_a": 0.3065785761151811,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.04498172648484161,
+      "weight": 0.11627906976744186
+    }
+  ],
+  "coverage": 0.7749259166364759,
+  "engine_version": "1",
+  "known_factor_count": 7,
+  "label": "ACCEPT",
+  "margin": 0.12352808538418997,
+  "raw_label": "ACCEPT",
+  "raw_score": 0.32352808538419,
+  "score": 0.32352808538419,
+  "selected_option": null,
+  "total_factor_count": 16,
+  "uncertain_reason": null
+}

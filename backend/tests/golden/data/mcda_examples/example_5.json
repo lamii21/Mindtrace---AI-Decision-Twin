@@ -1,0 +1,34 @@
+{
+  "config_version": "1",
+  "contributions": [
+    {
+      "contribution_pct": -100.0,
+      "factor_id": "downside_risk",
+      "level_a": "moderate",
+      "normalized_value_a": 0.49388724294337816,
+      "normalized_value_b": 0.5,
+      "raw_contribution": -0.0071315498993921485,
+      "weight": 0.5833333333333333
+    },
+    {
+      "contribution_pct": 0.0,
+      "factor_id": "intrinsic_interest",
+      "level_a": "moderate",
+      "normalized_value_a": 0.5,
+      "normalized_value_b": 0.5,
+      "raw_contribution": 0.0,
+      "weight": 0.41666666666666663
+    }
+  ],
+  "coverage": 0.2162583953404119,
+  "engine_version": "1",
+  "known_factor_count": 2,
+  "label": "UNCERTAIN",
+  "margin": -0.19286845010060788,
+  "raw_label": "UNCERTAIN",
+  "raw_score": -0.007131549899392131,
+  "score": -0.007131549899392131,
+  "selected_option": null,
+  "total_factor_count": 16,
+  "uncertain_reason": "insufficient_coverage"
+}
