@@ -9,6 +9,14 @@ an LLM provider SDK, or any higher ``mindtrace`` layer -- enforced by
 
 from __future__ import annotations
 
+from mindtrace.domain.confidence import (
+    CalibrationLedger,
+    CalibrationRecord,
+    ConfidenceInputs,
+    ConfidenceResult,
+    EnsembleObservation,
+    ExtractionSignal,
+)
 from mindtrace.domain.decision import (
     Contribution,
     DecisionResult,
@@ -88,7 +96,11 @@ from mindtrace.domain.traits import (
 __all__ = [
     "BeliefType",
     "BetaPrior",
+    "CalibrationLedger",
+    "CalibrationRecord",
     "ChoiceOption",
+    "ConfidenceInputs",
+    "ConfidenceResult",
     "ConsentScope",
     "Contribution",
     "DecisionOutcome",
@@ -99,12 +111,14 @@ __all__ = [
     "DispositionItem",
     "DispositionSpec",
     "DomainError",
+    "EnsembleObservation",
     "EpistemicState",
     "EventId",
     "Evidence",
     "EvidenceId",
     "EvidenceSourceKind",
     "EvidenceTag",
+    "ExtractionSignal",
     "FactorDirection",
     "FactorId",
     "FactorReading",
