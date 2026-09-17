@@ -1,0 +1,150 @@
+{
+  "disposition_evidence_count": {
+    "ambiguity_aversion": 0,
+    "effort_tolerance": 0,
+    "risk_tolerance": 0,
+    "time_discount": 0
+  },
+  "dispositions": {
+    "ambiguity_aversion": {
+      "alpha": 2.5,
+      "beta": 2.0,
+      "id": "ambiguity_aversion"
+    },
+    "effort_tolerance": {
+      "alpha": 2.0,
+      "beta": 2.0,
+      "id": "effort_tolerance"
+    },
+    "risk_tolerance": {
+      "alpha": 2.0,
+      "beta": 2.0,
+      "id": "risk_tolerance"
+    },
+    "time_discount": {
+      "alpha": 2.5,
+      "beta": 2.0,
+      "id": "time_discount"
+    }
+  },
+  "engine_version": "1",
+  "trait_schema_version": 1,
+  "weight_evidence_count": {
+    "autonomy": 0,
+    "creative_expression": 0,
+    "downside_risk": 0,
+    "external_impact": 0,
+    "financial_return": 0,
+    "financial_security": 0,
+    "health_wellbeing": 0,
+    "intrinsic_interest": 0,
+    "location_fit": 0,
+    "long_term_value": 0,
+    "novelty": 0,
+    "option_value": 0,
+    "reversibility": 0,
+    "skill_growth": 0,
+    "social_fit": 0,
+    "social_standing": 0,
+    "stability": 0,
+    "time_demand": 0,
+    "values_alignment": 0
+  },
+  "weights": {
+    "autonomy": {
+      "factor": "autonomy",
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "creative_expression": {
+      "factor": "creative_expression",
+      "mu": -0.1,
+      "sigma": 1.5
+    },
+    "downside_risk": {
+      "factor": "downside_risk",
+      "mu": 0.1,
+      "sigma": 1.4
+    },
+    "external_impact": {
+      "factor": "external_impact",
+      "mu": -0.6,
+      "sigma": 0.6
+    },
+    "financial_return": {
+      "factor": "financial_return",
+      "mu": 0.15,
+      "sigma": 1.4
+    },
+    "financial_security": {
+      "factor": "financial_security",
+      "mu": 0.15,
+      "sigma": 1.4
+    },
+    "health_wellbeing": {
+      "factor": "health_wellbeing",
+      "mu": 0.05,
+      "sigma": 1.5
+    },
+    "intrinsic_interest": {
+      "factor": "intrinsic_interest",
+      "mu": 0.1,
+      "sigma": 1.5
+    },
+    "location_fit": {
+      "factor": "location_fit",
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "long_term_value": {
+      "factor": "long_term_value",
+      "mu": 0.05,
+      "sigma": 1.5
+    },
+    "novelty": {
+      "factor": "novelty",
+      "mu": -0.6,
+      "sigma": 0.6
+    },
+    "option_value": {
+      "factor": "option_value",
+      "mu": 0.05,
+      "sigma": 1.5
+    },
+    "reversibility": {
+      "factor": "reversibility",
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "skill_growth": {
+      "factor": "skill_growth",
+      "mu": 0.2,
+      "sigma": 1.4
+    },
+    "social_fit": {
+      "factor": "social_fit",
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "social_standing": {
+      "factor": "social_standing",
+      "mu": -0.6,
+      "sigma": 0.6
+    },
+    "stability": {
+      "factor": "stability",
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "time_demand": {
+      "factor": "time_demand",
+      "mu": 0.0,
+      "sigma": 1.5
+    },
+    "values_alignment": {
+      "factor": "values_alignment",
+      "mu": 0.0,
+      "sigma": 1.5
+    }
+  }
+}
