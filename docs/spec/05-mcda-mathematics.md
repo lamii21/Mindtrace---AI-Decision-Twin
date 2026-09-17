@@ -143,10 +143,18 @@ label =
 
 The **UNCERTAIN threshold** is therefore three-part: the score band `(TAU_REJECT, TAU_ACCEPT)`,
 the coverage gate, and the model-confidence gate. The recorded `uncertain_reason ∈
-{score_in_band, insufficient_coverage, low_model_confidence}` (first that applies, in that
-priority order) — this distinction is surfaced to the user and drives whether the UI offers
-Active Elicitation (for `insufficient_coverage`) or shows the near-tie trade-off (for
-`score_in_band`).
+{insufficient_coverage, low_model_confidence, score_in_band}` (first that applies, in that
+priority order — matching the pseudocode above and Example 5 below, where `coverage` fails
+*and* `S` is independently in the dead zone, and the recorded reason is `insufficient_coverage`)
+— this distinction is surfaced to the user and drives whether the UI offers Active Elicitation
+(for `insufficient_coverage`) or shows the near-tie trade-off (for `score_in_band`).
+
+> **M3 correction (was inconsistent):** an earlier revision of this paragraph listed the priority
+> order as `{score_in_band, insufficient_coverage, low_model_confidence}` — score-band *first* —
+> which contradicted both the pseudocode immediately above (coverage checked before the
+> score-band fallback) and Example 5 (coverage fails, score is *also* in the band, and the
+> worked result is `insufficient_coverage`). Fixed to match the pseudocode and the worked
+> example; no mathematics changed, only this sentence's ordering.
 
 ---
 
@@ -202,20 +210,42 @@ the residual and are `known=false` in every example, so they never enter aggrega
 
 | factor | `w^raw` |
 |---|---|
-| skill_growth | 0.22 |
-| financial_return | 0.16 |
-| downside_risk | 0.14 |
-| financial_security | 0.10 |
-| location_fit | 0.10 |
-| intrinsic_interest | 0.10 |
-| autonomy | 0.08 |
-| stability | 0.06 |
-| social_fit | 0.06 |
-| reversibility | 0.05 |
-| (residual, 6 factors) | 0.03 total |
+| skill_growth | 0.1994 |
+| financial_return | 0.1450 |
+| downside_risk | 0.1269 |
+| financial_security | 0.0907 |
+| location_fit | 0.0907 |
+| intrinsic_interest | 0.0907 |
+| autonomy | 0.0725 |
+| stability | 0.0544 |
+| social_fit | 0.0544 |
+| reversibility | 0.0453 |
+| (residual, 6 factors) | 0.03 total (0.005 each) |
 
 No disposition weight adjustments fire in examples 1–3 (no `option_value`/`long_term_value`/
 `reversibility` in `K`); example 4 uses the `reversibility` bump.
+
+> **M3 correction (arithmetic error, now fixed):** the previously published table listed
+> `skill_growth=0.22, financial_return=0.16, downside_risk=0.14, financial_security=0.10,
+> location_fit=0.10, intrinsic_interest=0.10, autonomy=0.08, stability=0.06, social_fit=0.06,
+> reversibility=0.05` — these ten values alone sum to **1.07**, already exceeding 1.0 *before*
+> adding the stated 0.03 residual (total 1.10). Spec §2a requires `sum_i w_i^raw = 1` (a hard
+> softmax invariant); the published table was not a valid weight vector at all, for any residual
+> choice (the ten listed values alone already overshoot the budget by 0.07 - no non-negative
+> residual fixes it). The values above are the same ten proportions **rescaled by 0.97/1.07**
+> (residual left at the stated 0.03) so the full 16-factor vector genuinely sums to 1.
+>
+> This is fixable by rescaling alone, and changes nothing else: weighted-additive renormalisation
+> (§2c) divides by the sum over the known set, so a uniform rescale of every listed weight leaves
+> every *renormalised* `w_i`, and therefore `V`, `S`, `label`, `margin`, and every `c_i%` in every
+> example below, unchanged (confirmed against the reference implementation - every figure below
+> matches the previously published one to the hand-computation's own rounding). The **only**
+> number the bug actually affects is `coverage`'s absolute value in each example (it was computed
+> as `Sigma_K w^raw / 1.00`, silently assuming the flawed table already summed to 1); each
+> example's stated `coverage` below is corrected accordingly. None of the five examples' coverage
+> **gate outcomes** change (§5's `coverage < COVERAGE_MIN_user` decision is identical before and
+> after the fix in all five cases) - see `docs/PHASE-0-REVIEW.md` / the M3 final report for the
+> full derivation.
 
 ---
 
@@ -235,10 +265,11 @@ company with a strong completion record, in my city."
 | location_fit | very_high | 1.00 | 1.000 |
 | intrinsic_interest | high | 0.75 | 0.750 |
 
-**Weights.** `Σ_{K} w^raw = 0.22+0.16+0.10+0.14+0.10+0.10 = 0.82`.
-`coverage = 0.82/1.00 = 0.82` ≥ `COVERAGE_MIN_user = 0.55 + 0.15·0.5 = 0.625`. ✓
-Renormalised `w`: skill_growth 0.2683, financial_return 0.1951, financial_security 0.1220,
-downside_risk 0.1707, location_fit 0.1220, intrinsic_interest 0.1220.
+**Weights.** `Σ_{K} w^raw = 0.1994+0.1450+0.0907+0.1269+0.0907+0.0907 = 0.7434`.
+`coverage ≈ 0.7389` (reference-implementation-exact; corrected, see the T-ref table note above)
+≥ `COVERAGE_MIN_user = 0.55 + 0.15·0.5 = 0.625`. ✓ Renormalised `w` is **unaffected** by the
+correction (renormalisation divides out the scale): skill_growth 0.2683, financial_return 0.1951,
+financial_security 0.1220, downside_risk 0.1707, location_fit 0.1220, intrinsic_interest 0.1220.
 
 **Aggregate.** `V(A) = 0.2683·1.000 + 0.1951·0.720 + 0.1220·0.782 + 0.1707·0.747 +
 0.1220·1.000 + 0.1220·0.750 = 0.8451`.
@@ -266,8 +297,9 @@ the company might fold within a year, and I wouldn't learn much new."
 | stability | very_low | 0.00 | 0.000 |
 | skill_growth | low | 0.25 | 0.250 |
 
-**Weights.** `Σ_K w^raw = 0.16+0.10+0.14+0.10+0.06+0.22 = 0.78`. `coverage = 0.78` ≥ 0.625 ✓.
-Renormalised: financial_return 0.2051, financial_security 0.1282, downside_risk 0.1795,
+**Weights.** `Σ_K w^raw = 0.1450+0.0907+0.1269+0.0907+0.0544+0.1994 = 0.7071`.
+`coverage ≈ 0.7028` (corrected) ≥ 0.625 ✓. Renormalised weights are **unaffected**:
+financial_return 0.2051, financial_security 0.1282, downside_risk 0.1795,
 location_fit 0.1282, stability 0.0769, skill_growth 0.2821.
 
 **Aggregate.** `V(A) = 0.2821·0.250 = 0.0705` (all other `n = 0`).
@@ -295,8 +327,9 @@ commute, a team I'm lukewarm on, and moderate risk."
 | downside_risk (cost) | moderate | 0.45 | `1 − 0.45^0.853 =` 0.494 |
 | intrinsic_interest | moderate | 0.50 | 0.500 |
 
-**Weights.** `Σ_K w^raw = 0.16+0.22+0.10+0.06+0.14+0.10 = 0.78`. `coverage = 0.78` ≥ 0.625 ✓.
-Renormalised: financial_return 0.2051, skill_growth 0.2821, location_fit 0.1282,
+**Weights.** `Σ_K w^raw = 0.1450+0.1994+0.0907+0.0544+0.1269+0.0907 = 0.7071`.
+`coverage ≈ 0.7028` (corrected) ≥ 0.625 ✓. Renormalised weights are **unaffected**:
+financial_return 0.2051, skill_growth 0.2821, location_fit 0.1282,
 social_fit 0.0769, downside_risk 0.1795, intrinsic_interest 0.1282.
 
 **Aggregate.** `V(A) = 0.2051·0.720 + 0.2821·0.750 + 0.1282·0.250 + 0.0769·0.250 +
@@ -330,10 +363,10 @@ job if it did."
 | downside_risk (cost) | high | 0.75 | `1 − 0.75^0.853 =` 0.218 |
 | reversibility | very_high | 1.00 | 1.000 |
 
-**Weights.** `w_reversibility^adj = 0.05·(1 + 0.4·0.5) = 0.06`; `W_adj = 1.00 + 0.01 = 1.01`.
-`Σ_K w^adj = 0.22+0.08+0.10+0.16+0.10+0.14+0.06 = 0.86`.
-`coverage = 0.86/1.01 = 0.851` ≥ 0.625 ✓.
-Renormalised `w` (÷0.86): skill_growth 0.2558, autonomy 0.0930, intrinsic_interest 0.1163,
+**Weights.** `w_reversibility^adj = 0.0453·(1 + 0.4·0.5) = 0.0544`; `W_adj = 1.00 + 0.0091 = 1.0091`.
+`Σ_K w^adj = 0.1994+0.0725+0.0907+0.1450+0.0907+0.1269+0.0544 = 0.7796`.
+`coverage ≈ 0.7726` (corrected) ≥ 0.625 ✓. Renormalised weights are **unaffected**
+(÷0.7796): skill_growth 0.2558, autonomy 0.0930, intrinsic_interest 0.1163,
 financial_return 0.1860, financial_security 0.1163, downside_risk 0.1628, reversibility 0.0698.
 
 **Aggregate.** `V(A) = 0.2558·1 + 0.0930·1 + 0.1163·1 + 0.1860·0.300 + 0.1163·0.306 +
@@ -362,14 +395,15 @@ it?"
 
 All other 14 factors: `known = false`.
 
-**Weights.** `Σ_K w^raw = 0.10 + 0.14 = 0.24`. `coverage = 0.24 / 1.00 = 0.24`.
-`COVERAGE_MIN_user = 0.55 + 0.15·0.5 = 0.625`. `0.24 < 0.625` → gate fires.
+**Weights.** `Σ_K w^raw = 0.0907 + 0.1269 = 0.2176`. `coverage ≈ 0.2163` (corrected).
+`COVERAGE_MIN_user = 0.55 + 0.15·0.5 = 0.625`. `0.2163 < 0.625` → gate fires (same outcome as
+before the correction).
 
-**Aggregate (still computed, for the record).** Renormalised: intrinsic_interest 0.4167,
-downside_risk 0.5833. `V(A) = 0.4167·0.500 + 0.5833·0.494 = 0.4964`. `S = 2·(0.4964 − 0.5) =
-−0.007`.
+**Aggregate (still computed, for the record).** Renormalised weights are **unaffected**:
+intrinsic_interest 0.4167, downside_risk 0.5833. `V(A) = 0.4167·0.500 + 0.5833·0.494 = 0.4964`.
+`S = 2·(0.4964 − 0.5) = −0.007`.
 
-**Result.** **UNCERTAIN**, `uncertain_reason = insufficient_coverage`, `coverage = 0.24`,
+**Result.** **UNCERTAIN**, `uncertain_reason = insufficient_coverage`, `coverage ≈ 0.2163`,
 `known_factors = 2/16`, `S ≈ −0.01`. The API returns the Active-Elicitation hook: the
 highest-prior unknown factor is `skill_growth` (`w^raw = 0.22`) → "To answer this I need to know
 roughly how much this role would grow your skills." No decision is asserted (principle 16).
