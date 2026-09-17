@@ -4,10 +4,11 @@
 # INI format (import-linter parses `.importlinter` as INI, not TOML - a
 # `pyproject.toml`-based `[tool.importlinter]` config uses TOML instead).
 #
-# M2 note: mindtrace.{domain,events,api,config} exist now. The layered contract
-# lists the modules present today; expand it as engines/services/db/... land in
-# M3+. The forbidden contracts already name every future forbidden dependency so
-# a premature import fails immediately.
+# M3 note: mindtrace.{domain,events,engines,api,config} exist now. `engines`
+# alone is permitted numpy/scipy (docs/architecture/01-repository-structure.md
+# s3: "engines -> domain + numpy") though M3 does not actually import it - see
+# the M3 final report's "numerical precision" note. The layered contract lists
+# the modules present today; expand it as services/db/... land in M4+.
 
 [importlinter]
 root_package = mindtrace
@@ -70,6 +71,33 @@ forbidden_modules =
     mindtrace.observability
     mindtrace.workers
 
+[importlinter:contract:engines-is-pure]
+name = Engines depend only on domain (+ numpy/scipy): no frameworks, no persistence, no LLM
+type = forbidden
+source_modules =
+    mindtrace.engines
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.events
+    mindtrace.llm
+    mindtrace.db
+    mindtrace.security
+    mindtrace.observability
+    mindtrace.workers
+
 [importlinter:contract:config-is-thin]
 name = Config stays thin: only depends on domain
 type = forbidden
@@ -93,6 +121,7 @@ type = forbidden
 source_modules =
     mindtrace.domain
     mindtrace.events
+    mindtrace.engines
     mindtrace.api
     mindtrace.config
 forbidden_modules =
@@ -102,9 +131,9 @@ forbidden_modules =
     langchain_core
 
 [importlinter:contract:layers]
-name = Layered architecture (M2 subset)
+name = Layered architecture (M3 subset)
 type = layers
 layers =
     mindtrace.api
-    mindtrace.events
+    mindtrace.engines | mindtrace.events
     mindtrace.domain
