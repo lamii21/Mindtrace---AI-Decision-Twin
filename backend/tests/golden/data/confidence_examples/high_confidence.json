@@ -1,0 +1,29 @@
+{
+  "calibrated_output": false,
+  "confidence_config_version": "1",
+  "confidence_engine_version": "1",
+  "credible_interval": null,
+  "inputs": {
+    "calibrated": "true",
+    "calibration_n": 12,
+    "coverage": 0.7388828507464074,
+    "ensemble_disagreement": 0.020396078054371096,
+    "ensemble_term_capped": false,
+    "evidence_sufficiency": 0.816786836456789,
+    "extraction_entropy": 0.0,
+    "extraction_path": "self_consistency",
+    "historical_calibration": 0.7062499999999999,
+    "margin": 0.49014711481313594,
+    "margin_adequacy": 1.0,
+    "n_bar": 12.0
+  },
+  "raw": 0.8730461771490019,
+  "value": 0.8730461771490019,
+  "weights_used": {
+    "A": 0.35,
+    "B": 0.2,
+    "C": 0.2,
+    "D": 0.1,
+    "E": 0.15
+  }
+}
