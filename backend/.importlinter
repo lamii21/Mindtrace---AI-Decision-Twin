@@ -9,6 +9,13 @@
 # s3: "engines -> domain + numpy") though M3 does not actually import it - see
 # the M3 final report's "numerical precision" note. The layered contract lists
 # the modules present today; expand it as services/db/... land in M4+.
+#
+# M5 note: mindtrace.llm exists now (ADR-003). It sits beside engines/events
+# in the layered contract - depends only on domain, never on engines (it must
+# not be able to make a decision) or on persistence/API layers. Only
+# mindtrace.llm.providers is meant to eventually import a real provider SDK
+# (provider-sdks-isolated already exempts all of mindtrace.llm by omission);
+# M5 ships only a network-free fake provider, so no such import exists yet.
 
 [importlinter]
 root_package = mindtrace
@@ -98,6 +105,29 @@ forbidden_modules =
     mindtrace.observability
     mindtrace.workers
 
+[importlinter:contract:llm-is-contained]
+name = LLM boundary depends only on domain: no deterministic engines, no persistence, no API
+type = forbidden
+source_modules =
+    mindtrace.llm
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    langchain
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.events
+    mindtrace.db
+    mindtrace.security
+    mindtrace.observability
+    mindtrace.workers
+
 [importlinter:contract:config-is-thin]
 name = Config stays thin: only depends on domain
 type = forbidden
@@ -131,9 +161,9 @@ forbidden_modules =
     langchain_core
 
 [importlinter:contract:layers]
-name = Layered architecture (M3 subset)
+name = Layered architecture (M5 subset)
 type = layers
 layers =
     mindtrace.api
-    mindtrace.engines | mindtrace.events
+    mindtrace.engines | mindtrace.events | mindtrace.llm
     mindtrace.domain

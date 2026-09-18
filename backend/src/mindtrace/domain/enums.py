@@ -206,3 +206,30 @@ class EvidenceSourceKind(StrEnum):
     DECISION = "decision"
     ELICITATION_ANSWER = "elicitation_answer"
     OUTCOME = "outcome"
+
+
+class ExtractionMode(StrEnum):
+    """How an LLM factor extraction was produced (ADR-003, M5).
+
+    ``SELF_CONSISTENCY`` values match the strings
+    ``mindtrace.engines.confidence.ExtractionSignal.path`` already expects
+    (spec/06 §4.4) - a ``StrEnum`` compares equal to its string value, so no
+    adapter is needed to hand one to the other.
+    """
+
+    SINGLE = "single"
+    SELF_CONSISTENCY = "self_consistency"
+
+
+class ExtractionFailureType(StrEnum):
+    """Why an LLM factor extraction failed closed (M5 §19).
+
+    Never guessed from a raw provider exception - each call site raises the
+    matching typed error.
+    """
+
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
+    PROVIDER_TIMEOUT = "provider_timeout"
+    MALFORMED_OUTPUT = "malformed_output"
+    SCHEMA_VALIDATION_FAILED = "schema_validation_failed"
+    TAXONOMY_VALIDATION_FAILED = "taxonomy_validation_failed"
