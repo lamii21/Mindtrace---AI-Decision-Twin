@@ -13,6 +13,13 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, model_validator
 
 ENGINE_VERSION = "1"
+# The posterior -> MCDA-weight-snapshot transformation (`projection.py`, M6-A) is
+# versioned separately from ENGINE_VERSION: a future change to how a
+# posterior is read into an EffectiveWeightVector (e.g. a different
+# normalization) need not imply the Laplace/Beta update math itself changed,
+# and vice versa. Bump this whenever `project_effective_weights`'s own
+# transformation changes.
+PROJECTION_VERSION = "1"
 
 _FrozenModel = ConfigDict(frozen=True, extra="forbid")
 

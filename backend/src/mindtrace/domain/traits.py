@@ -18,6 +18,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from mindtrace.domain._schema_io import read_json, read_yaml, validate_structure
+from mindtrace.domain.decision import DispositionInputs, WeightVector
 from mindtrace.domain.enums import FactorTier, PosteriorKind, SelfReportReliability
 from mindtrace.domain.errors import SchemaConsistencyError, SchemaValidationError
 from mindtrace.domain.factors import FactorTaxonomy
@@ -115,8 +116,20 @@ class TraitModel(BaseModel):
 
     @property
     def weight_factor_ids(self) -> frozenset[FactorId]:
-        """Ids of every factor that has an importance weight."""
+        """Ids of every factor that has an importance weight (core and extended)."""
         return frozenset(w.factor for w in self.weights)
+
+    @property
+    def core_weight_factor_ids(self) -> tuple[FactorId, ...]:
+        """Ids of every CORE (v1-aggregated) weight trait, in file order.
+
+        Exactly the factor set `mindtrace.domain.decision.WeightVector` must
+        cover (M3's `decide()` rejects anything else) - each spec's own
+        `tier`, cross-validated against `FactorTaxonomy` at load time
+        (`_validate_weight_coverage`), is the authoritative source, so this
+        never needs a second `FactorTaxonomy` reference to compute.
+        """
+        return tuple(w.factor for w in self.weights if w.tier is FactorTier.CORE)
 
     @property
     def disposition_ids(self) -> tuple[DispositionId, ...]:
@@ -465,3 +478,28 @@ class TraitReport(BaseModel):
             msg = f"source must be 'declared' or 'inferred', got {value!r}"
             raise ValueError(msg)
         return value
+
+
+class EffectiveWeightVector(BaseModel):
+    """M3's MCDA-ready view of a `PreferencePosterior` (M6-A).
+
+    A derived, deterministic *snapshot*, never a replacement for the
+    posterior. `weights`/`dispositions` are M3's own input types
+    (`mindtrace.domain.decision`), ready to pass to
+    `mindtrace.engines.mcda.decide()` unmodified. The posterior that produced
+    this snapshot remains the authoritative probabilistic representation -
+    its `mu`/`sigma`/`alpha`/`beta`, credible intervals, and evidence counts
+    are untouched and still directly accessible; this type only ever adds a
+    read, never replaces what it read from.
+    """
+
+    model_config = _FrozenModel
+
+    weights: WeightVector
+    dispositions: DispositionInputs
+    trait_schema_version: int
+    preference_engine_version: str
+    projection_version: str
+    read_transform: str
+    total_weight_evidence_count: int = Field(ge=0)
+    total_disposition_evidence_count: int = Field(ge=0)

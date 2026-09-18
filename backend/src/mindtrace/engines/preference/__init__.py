@@ -11,6 +11,7 @@ from __future__ import annotations
 from mindtrace.engines.preference.config import (
     DEFAULT_PREFERENCE_CONFIG,
     ENGINE_VERSION,
+    PROJECTION_VERSION,
     PreferenceConfig,
 )
 from mindtrace.engines.preference.errors import PreferenceValidationError
@@ -27,6 +28,7 @@ from mindtrace.engines.preference.posterior import (
     weight_report,
 )
 from mindtrace.engines.preference.prior import initial_posterior
+from mindtrace.engines.preference.projection import project_effective_weights
 from mindtrace.engines.preference.update import (
     apply_disposition_observations,
     apply_pairwise_observations,
@@ -39,6 +41,7 @@ from mindtrace.engines.preference.update import (
 __all__ = [
     "DEFAULT_PREFERENCE_CONFIG",
     "ENGINE_VERSION",
+    "PROJECTION_VERSION",
     "PreferenceConfig",
     "PreferenceValidationError",
     "apply_disposition_observations",
@@ -50,6 +53,7 @@ __all__ = [
     "effective_sample_sizes",
     "initial_posterior",
     "laplace_map_update",
+    "project_effective_weights",
     "softmax_over_known",
     "to_disposition_inputs",
     "update_disposition",
