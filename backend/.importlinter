@@ -16,6 +16,12 @@
 # mindtrace.llm.providers is meant to eventually import a real provider SDK
 # (provider-sdks-isolated already exempts all of mindtrace.llm by omission);
 # M5 ships only a network-free fake provider, so no such import exists yet.
+#
+# M6-B note: mindtrace.orchestration exists now - the first layer allowed to
+# import engines/llm together (it composes them; they never import it or
+# each other). Still no persistence/API/frameworks: orchestration-is-
+# contained forbids mindtrace.events too (no event sourcing in M6-B's
+# in-memory pipeline).
 
 [importlinter]
 root_package = mindtrace
@@ -45,6 +51,7 @@ forbidden_modules =
     mindtrace.engines
     mindtrace.events
     mindtrace.llm
+    mindtrace.orchestration
     mindtrace.db
     mindtrace.security
     mindtrace.observability
@@ -73,6 +80,7 @@ forbidden_modules =
     mindtrace.services
     mindtrace.engines
     mindtrace.llm
+    mindtrace.orchestration
     mindtrace.db
     mindtrace.security
     mindtrace.observability
@@ -100,6 +108,7 @@ forbidden_modules =
     mindtrace.services
     mindtrace.events
     mindtrace.llm
+    mindtrace.orchestration
     mindtrace.db
     mindtrace.security
     mindtrace.observability
@@ -123,6 +132,33 @@ forbidden_modules =
     mindtrace.services
     mindtrace.engines
     mindtrace.events
+    mindtrace.orchestration
+    mindtrace.db
+    mindtrace.security
+    mindtrace.observability
+    mindtrace.workers
+
+[importlinter:contract:orchestration-is-contained]
+name = Orchestration depends on domain/engines/llm only: no frameworks, no persistence, no API
+type = forbidden
+source_modules =
+    mindtrace.orchestration
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.events
     mindtrace.db
     mindtrace.security
     mindtrace.observability
@@ -143,6 +179,7 @@ forbidden_modules =
     mindtrace.engines
     mindtrace.events
     mindtrace.llm
+    mindtrace.orchestration
     mindtrace.db
 
 [importlinter:contract:provider-sdks-isolated]
@@ -152,6 +189,7 @@ source_modules =
     mindtrace.domain
     mindtrace.events
     mindtrace.engines
+    mindtrace.orchestration
     mindtrace.api
     mindtrace.config
 forbidden_modules =
@@ -161,9 +199,10 @@ forbidden_modules =
     langchain_core
 
 [importlinter:contract:layers]
-name = Layered architecture (M5 subset)
+name = Layered architecture (M6-B subset)
 type = layers
 layers =
     mindtrace.api
+    mindtrace.orchestration
     mindtrace.engines | mindtrace.events | mindtrace.llm
     mindtrace.domain
