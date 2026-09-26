@@ -9,6 +9,7 @@ second, independent container so the two don't interfere.
 from __future__ import annotations
 
 import os
+import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -31,6 +32,8 @@ _EXPECTED_TABLES = {
     "memory_event",
     "memory",
     "decision",
+    "refresh_token",
+    "idempotency_key",
     "alembic_version",
 }
 
@@ -99,6 +102,70 @@ def test_downgrade_base_then_upgrade_head_round_trips_cleanly(fresh_owner_url: s
     finally:
         engine.dispose()
     assert tables == _EXPECTED_TABLES
+
+
+def test_0001_data_survives_upgrade_to_0002_and_downgrade_back_to_0001(
+    fresh_owner_url: str,
+) -> None:
+    """current 0001 -> upgrade 0002 -> verify -> downgrade 0001 -> upgrade 0002.
+
+    Existing 0001-era data (a user row) must survive the whole round trip -
+    0002 only adds new tables/functions, it never touches 0001's (M6-API
+    planning s13).
+    """
+    config = _alembic_config()
+    os.environ["MINDTRACE_DATABASE_URL"] = fresh_owner_url
+    get_settings.cache_clear()
+    try:
+        command.upgrade(config, "0001")
+
+        engine = create_engine(fresh_owner_url)
+        user_id = uuid.uuid4()
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO users (id, email, password_hash, status, data_key_ref, "
+                        "next_event_seq, created_at) VALUES "
+                        "(:id, :email, 'hash', 'active', 1, 1, now())"
+                    ),
+                    {"id": user_id, "email": f"{user_id}@example.dev"},
+                )
+        finally:
+            engine.dispose()
+
+        command.upgrade(config, "0002")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                survived: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert tables == _EXPECTED_TABLES
+        assert survived == f"{user_id}@example.dev"
+
+        command.downgrade(config, "0001")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables_after_downgrade = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                still_there: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert "refresh_token" not in tables_after_downgrade
+        assert "idempotency_key" not in tables_after_downgrade
+        assert still_there == f"{user_id}@example.dev"
+
+        command.upgrade(config, "0002")
+    finally:
+        os.environ.pop("MINDTRACE_DATABASE_URL", None)
+        get_settings.cache_clear()
+        db_session.reset_engine_for_tests()
 
 
 def test_rls_is_enabled_and_forced_on_every_user_owned_table(fresh_owner_url: str) -> None:

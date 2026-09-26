@@ -22,9 +22,31 @@ def test_health_response_is_deterministic_across_calls() -> None:
     assert first == second
 
 
-def test_app_has_no_other_business_routes_yet() -> None:
+def test_app_exposes_exactly_the_m6_business_routes() -> None:
+    """As of M6-API, auth/memories/decisions routers are wired in.
+
+    Superseded the M1-era "no business routes yet" assertion now that they
+    exist; still guards against accidentally adding anything from M7+
+    (simulate, twins, elicitation, evidence, evaluation, contradictions).
+
+    Reads the OpenAPI spec rather than walking ``app.routes`` directly:
+    FastAPI's router composition wraps included routers in an internal
+    ``_IncludedRouter`` that does not expose a flat ``.path`` per route.
+    """
     app = create_app()
-    framework_paths = {"/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
-    paths = {route.path for route in app.routes if hasattr(route, "path")}
-    business_paths = paths - framework_paths
-    assert business_paths == set(), f"unexpected routes in M1: {business_paths}"
+    paths = set(app.openapi()["paths"].keys())
+    business_paths = paths - {"/health"}
+    assert business_paths == {
+        "/v1/auth/register",
+        "/v1/auth/login",
+        "/v1/auth/refresh",
+        "/v1/auth/logout",
+        "/v1/auth/me",
+        "/v1/auth/consent",
+        "/v1/memories",
+        "/v1/memories/{memory_id}",
+        "/v1/decisions",
+        "/v1/decisions/{decision_id}",
+        "/v1/decisions/{decision_id}/simulations",
+    }
+    assert "/v1/simulate" not in paths

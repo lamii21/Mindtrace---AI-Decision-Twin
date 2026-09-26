@@ -69,6 +69,14 @@ def _seed_memory_event(*, user: User, key_provider: object) -> None:
 
 
 def _seed_memory(*, user: User, key_provider: object) -> Memory:
+    """Seed both a real originating ``memory_event`` and its projected ``memory`` row.
+
+    ``memory.origin_event_seq`` must name a real ``memory_event`` row -
+    ``get_memory``/``list_memories`` join on it for ``created_at`` (M6-API
+    planning s9) - so this seeds the event first rather than fabricating a
+    projection with no event behind it.
+    """
+    _seed_memory_event(user=user, key_provider=key_provider)
     memory = Memory(
         id=MemoryId(uuid4()),
         user_id=user.id,
@@ -167,11 +175,12 @@ class TestMultiTableIsolation:
         assert set(rows) == {str(user_a.id)}
 
         visible = list_memories(user_a.id, key_provider=key_provider)  # type: ignore[arg-type]
-        assert [m.id for m in visible] == [memory_a.id]
-        assert visible[0].content == memory_a.content
+        assert [m.id for m, _created_at in visible] == [memory_a.id]
+        assert visible[0][0].content == memory_a.content
 
         fetched = get_memory(user_a.id, memory_a.id, key_provider=key_provider)  # type: ignore[arg-type]
-        assert fetched == memory_a
+        assert fetched is not None
+        assert fetched[0] == memory_a
 
         # User B cannot fetch A's memory even by its exact id (RLS, not a query filter).
         assert get_memory(user_b.id, memory_a.id, key_provider=key_provider) is None  # type: ignore[arg-type]

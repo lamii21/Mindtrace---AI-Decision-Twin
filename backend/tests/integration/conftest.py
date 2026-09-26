@@ -14,7 +14,11 @@ import base64
 from collections.abc import Iterator
 
 import pytest
+from fastapi.testclient import TestClient
 
+from mindtrace.api import deps as api_deps
+from mindtrace.api.app import create_app
+from mindtrace.config import get_settings
 from mindtrace.db import session as db_session
 from mindtrace.security.keyring import EnvironmentKeyProvider
 from tests.support.postgres_support import (
@@ -99,3 +103,26 @@ def master_key_b64() -> str:
 def key_provider(master_key_b64: str) -> EnvironmentKeyProvider:
     """A real :class:`EnvironmentKeyProvider` bound to :func:`master_key_b64`."""
     return EnvironmentKeyProvider(base64.b64decode(master_key_b64))
+
+
+@pytest.fixture
+def api_client(
+    app_database_url: str, master_key_b64: str, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[TestClient]:
+    """A ``TestClient`` for the real FastAPI app, wired to the running container.
+
+    Env vars are set via ``monkeypatch`` (auto-reverted) and ``Settings``'s
+    cache is cleared both before and after, so this test's configuration
+    never leaks into a later test's ``get_settings()`` call.
+    """
+    monkeypatch.setenv("MINDTRACE_DATABASE_URL", app_database_url)
+    monkeypatch.setenv("MINDTRACE_MASTER_KEY", master_key_b64)
+    monkeypatch.setenv("MINDTRACE_JWT_SECRET", "test-jwt-secret-32-bytes-long!!!")
+    get_settings.cache_clear()
+    db_session.configure_engine(app_database_url)
+    try:
+        yield TestClient(create_app())
+    finally:
+        db_session.reset_engine_for_tests()
+        api_deps.reset_key_provider_cache_for_tests()
+        get_settings.cache_clear()
