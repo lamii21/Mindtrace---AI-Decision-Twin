@@ -89,6 +89,7 @@ from mindtrace.domain.interview import (
 )
 from mindtrace.domain.memory import Memory
 from mindtrace.domain.provenance import classify_epistemic_state
+from mindtrace.domain.refresh_token import RefreshToken
 from mindtrace.domain.schema_bundle import SchemaBundle, load_schema_bundle
 from mindtrace.domain.traits import (
     BetaPrior,
@@ -173,6 +174,7 @@ __all__ = [
     "PosteriorKind",
     "PreferencePosterior",
     "ProvenanceSource",
+    "RefreshToken",
     "ReportConfig",
     "ScaleLevel",
     "SchemaBundle",

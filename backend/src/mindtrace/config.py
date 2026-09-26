@@ -26,10 +26,15 @@ from mindtrace.domain.errors import DomainError
 from mindtrace.domain.paths import default_schema_dir
 
 MASTER_KEY_LENGTH = 32  # AES-256, ADR-009
+MIN_JWT_SECRET_LENGTH = 32  # 256 bits - enough entropy for HS256
 
 
 class MasterKeyConfigError(DomainError):
     """``MINDTRACE_MASTER_KEY`` is set but is not valid base64-encoded 32 bytes."""
+
+
+class JwtSecretConfigError(DomainError):
+    """``MINDTRACE_JWT_SECRET`` is unset or shorter than :data:`MIN_JWT_SECRET_LENGTH`."""
 
 
 class Settings(BaseSettings):
@@ -47,6 +52,11 @@ class Settings(BaseSettings):
     schema_dir: Path = Field(default_factory=default_schema_dir)
     database_url: str | None = None
     master_key: SecretStr | None = None
+    jwt_secret: SecretStr | None = None
+    jwt_algorithm: str = "HS256"
+    access_token_ttl_seconds: int = 1800  # ~30 min, docs/api/08 s1
+    refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 days - not specified by docs; a
+    # reasonable, documented default for a rotating, revocable refresh token (M6-API planning)
 
     def master_key_bytes(self) -> bytes:
         """Decode ``master_key`` into exactly :data:`MASTER_KEY_LENGTH` raw bytes.
@@ -70,6 +80,23 @@ class Settings(BaseSettings):
             )
             raise MasterKeyConfigError(msg)
         return decoded
+
+    def jwt_secret_bytes(self) -> bytes:
+        """Return the raw JWT signing secret, encoded UTF-8.
+
+        Raises:
+            JwtSecretConfigError: ``jwt_secret`` is unset or shorter than
+                :data:`MIN_JWT_SECRET_LENGTH` bytes. Fails closed - never
+                signs a token with a placeholder secret.
+        """
+        if self.jwt_secret is None:
+            msg = "MINDTRACE_JWT_SECRET is not set"
+            raise JwtSecretConfigError(msg)
+        secret = self.jwt_secret.get_secret_value().encode("utf-8")
+        if len(secret) < MIN_JWT_SECRET_LENGTH:
+            msg = f"MINDTRACE_JWT_SECRET must be at least {MIN_JWT_SECRET_LENGTH} bytes"
+            raise JwtSecretConfigError(msg)
+        return secret
 
 
 @lru_cache(maxsize=1)
