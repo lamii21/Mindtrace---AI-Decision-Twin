@@ -1,0 +1,121 @@
+"""Migration reversibility and schema-drift detection.
+
+M6-Persistence/Foundation planning s23. ``postgres_owner_url`` already ran
+``upgrade head`` once (session-scoped, in ``conftest.py``); this module
+proves the full ``downgrade base`` -> ``upgrade head`` round trip on a
+second, independent container so the two don't interfere.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Iterator
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, inspect, text
+from testcontainers.community.postgres import PostgresContainer
+
+from mindtrace.config import get_settings
+from mindtrace.db import session as db_session
+from tests.integration.conftest import requires_docker
+from tests.support.postgres_support import BACKEND_ROOT, INIT_SQL, run_migrations
+
+pytestmark = requires_docker
+
+_EXPECTED_TABLES = {
+    "users",
+    "user_data_key",
+    "consent_record",
+    "memory_event",
+    "memory",
+    "decision",
+    "alembic_version",
+}
+
+
+@pytest.fixture(scope="module")
+def fresh_owner_url() -> Iterator[str]:
+    """A second, independent container.
+
+    This module mutates schema state (downgrade/upgrade) and must not
+    interfere with the session-scoped fixture other integration modules
+    share.
+    """
+    container = PostgresContainer(
+        image="pgvector/pgvector:pg16",
+        username="mindtrace",
+        password="mindtrace",
+        dbname="mindtrace",
+        driver="psycopg",
+    )
+    container.with_volume_mapping(str(INIT_SQL), "/docker-entrypoint-initdb.d/init.sql", "ro")
+    with container:
+        yield container.get_connection_url()
+
+
+def _alembic_config() -> Config:
+    config = Config(str(BACKEND_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(BACKEND_ROOT / "migrations"))
+    return config
+
+
+def test_upgrade_head_creates_exactly_this_milestones_tables(fresh_owner_url: str) -> None:
+    run_migrations(fresh_owner_url)
+    engine = create_engine(fresh_owner_url)
+    try:
+        tables = set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+    assert tables == _EXPECTED_TABLES
+
+
+def test_downgrade_base_then_upgrade_head_round_trips_cleanly(fresh_owner_url: str) -> None:
+    run_migrations(fresh_owner_url)
+
+    os.environ["MINDTRACE_DATABASE_URL"] = fresh_owner_url
+    get_settings.cache_clear()
+    try:
+        config = _alembic_config()
+        command.downgrade(config, "base")
+
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables = set(inspect(engine).get_table_names()) - {"alembic_version"}
+        finally:
+            engine.dispose()
+        assert tables == set()
+
+        command.upgrade(config, "head")
+    finally:
+        os.environ.pop("MINDTRACE_DATABASE_URL", None)
+        get_settings.cache_clear()
+        db_session.reset_engine_for_tests()
+
+    engine = create_engine(fresh_owner_url)
+    try:
+        tables = set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+    assert tables == _EXPECTED_TABLES
+
+
+def test_rls_is_enabled_and_forced_on_every_user_owned_table(fresh_owner_url: str) -> None:
+    run_migrations(fresh_owner_url)
+    engine = create_engine(fresh_owner_url)
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT relname, relrowsecurity, relforcerowsecurity "
+                    "FROM pg_class WHERE relname = ANY(:names)"
+                ),
+                {"names": list(_EXPECTED_TABLES - {"alembic_version"})},
+            ).all()
+    finally:
+        engine.dispose()
+    assert len(rows) == len(_EXPECTED_TABLES) - 1
+    for _name, enabled, forced in rows:
+        assert enabled is True
+        assert forced is True
