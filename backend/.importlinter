@@ -31,6 +31,18 @@
 # needs a `KeyProvider` but takes it as a Protocol parameter rather than
 # importing `security.keyring` directly, so neither ever imports the other -
 # db-is-contained/security-is-contained enforce this in both directions.
+#
+# M6-API note: mindtrace.services exists now (`memory_service`,
+# `decision_service`, `auth_service`) - layer 2, coordinating `db`/
+# `security`/`events` behind the HTTP boundary. It never imports
+# `mindtrace.orchestration` (M6-API must not call `orchestration.simulate()`
+# - that is M7's job), never `mindtrace.engines`/`mindtrace.llm` (no
+# simulation math in M6), and never `sqlalchemy` directly (SQL stays in
+# `db/repositories/`). `mindtrace.api` gets its own contract for the first
+# time too: no `sqlalchemy`/`mindtrace.db` in routers (`services/` is the
+# only caller of `db/`), no `mindtrace.orchestration`/`mindtrace.engines`/
+# `mindtrace.llm` (`security.auth` is the one exception - token
+# verification is an API-boundary concern the docs place in `security/`).
 
 [importlinter]
 root_package = mindtrace
@@ -245,6 +257,60 @@ forbidden_modules =
     mindtrace.db
     mindtrace.observability
     mindtrace.workers
+
+[importlinter:contract:services-is-contained]
+name = services depends on domain/db/security/events only: no HTTP, no orchestration/engines/llm
+type = forbidden
+source_modules =
+    mindtrace.services
+forbidden_modules =
+    fastapi
+    starlette
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    mindtrace.api
+    mindtrace.config
+    mindtrace.engines
+    mindtrace.llm
+    mindtrace.orchestration
+    mindtrace.observability
+    mindtrace.workers
+# sqlalchemy/alembic deliberately NOT listed: import-linter's `forbidden`
+# contract checks the full transitive graph, and services legitimately
+# depends on db.repositories, which depends on sqlalchemy - forbidding it
+# here would make that legitimate edge impossible to express. "services
+# never writes raw SQL itself" is a real rule, but it is a code-review
+# convention (db/repositories/ is the only place SQLAlchemy constructs are
+# written), not one this transitive-checking mechanism can enforce without
+# also forbidding the one dependency services is supposed to have.
+
+[importlinter:contract:api-is-contained]
+name = api depends on services/security/domain only: no orchestration/engines/llm in routers
+type = forbidden
+source_modules =
+    mindtrace.api
+forbidden_modules =
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    mindtrace.engines
+    mindtrace.llm
+    mindtrace.orchestration
+    mindtrace.workers
+# sqlalchemy/alembic/mindtrace.db deliberately NOT listed, same reasoning as
+# services-is-contained: api legitimately depends on services, which
+# legitimately depends on db - import-linter's `forbidden` contract checks
+# the full transitive graph, so listing them here would forbid the one
+# dependency chain this API is built on. "routers never construct SQL/ORM
+# queries themselves" is enforced by code review (only db/repositories/
+# constructs SQLAlchemy statements), not by this mechanism.
 
 [importlinter:contract:provider-sdks-isolated]
 name = Provider SDKs only under mindtrace.llm.providers

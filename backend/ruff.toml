@@ -34,6 +34,12 @@ ignore = [
 [lint.per-file-ignores]
 "tests/**" = ["D", "PLR2004", "S101"]
 "**/__init__.py" = ["D104"]
+# FastAPI's own DI idiom is `param: T = Depends(fn)` - B008 (no function calls
+# in argument defaults) and PLR0917 (too many positional args) both fire on
+# every dependency-injected route handler; this is the framework's documented
+# pattern, not a bug (M6-API planning).
+"src/mindtrace/api/routers/**" = ["B008", "PLR0917"]
+"src/mindtrace/api/deps.py" = ["B008"]
 
 [lint.pydocstyle]
 convention = "google"
