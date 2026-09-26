@@ -6,9 +6,20 @@ and read back byte-identical - this milestone's acceptance criterion for
 "encrypted event data can be read, decrypted, and replayed through the
 existing projector" (M6-Persistence/Foundation planning s17). Nothing here
 changes the projector; this module only persists its output.
+
+``docs/api/08`` s3's ``MemoryOut.created_at`` has no domain-type counterpart
+(``domain.memory.Memory`` deliberately omits it, matching AG-3's own
+sketch - M2 s9). Rather than add it to the pure projection type just to
+satisfy one API DTO, ``get_memory``/``list_memories`` return it alongside
+the ``Memory``, read from the *originating* ``memory_event.created_at`` in
+one extra query per call (never N+1 across a list) - a memory's creation
+time is, by construction, its origin event's timestamp.
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,6 +27,7 @@ from sqlalchemy.orm import Session
 from mindtrace.db.crypto import KeyProvider, decrypt_field, encrypt_field
 from mindtrace.db.dek_resolution import current_key_version, resolve_dek
 from mindtrace.db.models.memory import MemoryModel
+from mindtrace.db.models.memory_event import MemoryEventModel
 from mindtrace.db.session import user_scoped_session
 from mindtrace.db.types import unpack_envelope
 from mindtrace.domain.enums import MemoryType, ProvenanceSource
@@ -49,27 +61,69 @@ def upsert_memory(*, memory: Memory, key_provider: KeyProvider) -> None:
             _apply_to_model(existing, memory, envelope)
 
 
-def get_memory(user_id: UserId, memory_id: MemoryId, *, key_provider: KeyProvider) -> Memory | None:
-    """Return one memory, decrypted, or ``None`` if it does not exist / is not visible (RLS)."""
+def get_memory(
+    user_id: UserId, memory_id: MemoryId, *, key_provider: KeyProvider
+) -> tuple[Memory, datetime] | None:
+    """Return one memory (with its origin event's ``created_at``), decrypted.
+
+    ``None`` if it does not exist / is not visible (RLS).
+    """
     with user_scoped_session(user_id) as session:
         row = session.get(MemoryModel, memory_id)
         if row is None:
             return None
-        return _decrypt(row, session=session, user_id=user_id, key_provider=key_provider)
+        memory = _decrypt(row, session=session, user_id=user_id, key_provider=key_provider)
+        created_at = session.execute(
+            select(MemoryEventModel.created_at).where(
+                MemoryEventModel.user_id == user_id, MemoryEventModel.seq == row.origin_event_seq
+            )
+        ).scalar_one()
+        return memory, created_at
 
 
-def list_memories(user_id: UserId, *, key_provider: KeyProvider) -> tuple[Memory, ...]:
-    """Every memory row for ``user_id``, decrypted, current or not."""
+def list_memories(
+    user_id: UserId,
+    *,
+    key_provider: KeyProvider,
+    type_: MemoryType | None = None,
+    source: ProvenanceSource | None = None,
+) -> tuple[tuple[Memory, datetime], ...]:
+    """Every memory row for ``user_id`` matching the given filters, decrypted, current or not.
+
+    Filters compare against the plaintext ``type``/``source`` columns
+    (``docs/api/08`` s3's ``GET /v1/memories?type=&source=``) - neither is an
+    encrypted field (M6-Persistence planning s3), so this is a normal
+    indexed ``WHERE``, not a decrypt-then-filter scan.
+    """
+    query = select(MemoryModel).where(MemoryModel.user_id == user_id)
+    if type_ is not None:
+        query = query.where(MemoryModel.type == type_.value)
+    if source is not None:
+        query = query.where(MemoryModel.source == source.value)
     with user_scoped_session(user_id) as session:
-        rows = (
-            session.execute(select(MemoryModel).where(MemoryModel.user_id == user_id))
-            .scalars()
-            .all()
-        )
+        rows = session.execute(query).scalars().all()
+        created_at_by_seq = _origin_created_at_by_seq(session, user_id=user_id, rows=rows)
         return tuple(
-            _decrypt(row, session=session, user_id=user_id, key_provider=key_provider)
+            (
+                _decrypt(row, session=session, user_id=user_id, key_provider=key_provider),
+                created_at_by_seq[row.origin_event_seq],
+            )
             for row in rows
         )
+
+
+def _origin_created_at_by_seq(
+    session: Session, *, user_id: UserId, rows: Sequence[MemoryModel]
+) -> dict[int, datetime]:
+    seqs = [row.origin_event_seq for row in rows]
+    if not seqs:
+        return {}
+    pairs = session.execute(
+        select(MemoryEventModel.seq, MemoryEventModel.created_at).where(
+            MemoryEventModel.user_id == user_id, MemoryEventModel.seq.in_(seqs)
+        )
+    ).all()
+    return dict(pairs)
 
 
 def _to_model(memory: Memory, envelope: bytes) -> MemoryModel:

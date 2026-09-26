@@ -24,3 +24,14 @@ class KeyUnavailableError(PersistenceError):
 
 class KeyDestroyedError(PersistenceError):
     """The ``user_data_key`` row exists but was crypto-shredded (``destroyed_at`` set)."""
+
+
+class DuplicateEmailError(PersistenceError):
+    """``users.email`` already has a row - the ``UNIQUE`` constraint rejected the insert.
+
+    Translated here, inside ``db/``, from the raw ``sqlalchemy.exc.
+    IntegrityError`` - ``services/`` never imports ``sqlalchemy`` directly
+    (M6-API import-linter contract), so the boundary that knows SQLAlchemy
+    raised something must be the one that converts it to a typed domain-
+    shaped error.
+    """

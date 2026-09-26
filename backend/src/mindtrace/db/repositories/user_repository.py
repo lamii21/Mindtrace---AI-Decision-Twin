@@ -12,14 +12,17 @@ one transaction, so a user is never observable without a working key.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import NamedTuple
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 
 from mindtrace.db.crypto import KeyProvider
+from mindtrace.db.errors import DuplicateEmailError
 from mindtrace.db.models.user import UserModel
 from mindtrace.db.models.user_data_key import UserDataKeyModel
-from mindtrace.db.session import user_scoped_session
+from mindtrace.db.session import get_session, user_scoped_session
 from mindtrace.domain.enums import UserStatus
 from mindtrace.domain.ids import UserId
 from mindtrace.domain.user import User
@@ -32,31 +35,41 @@ def create_user(*, user: User, dek: bytes, key_provider: KeyProvider) -> None:
 
     ``user.data_key_ref`` must equal :data:`_INITIAL_KEY_VERSION` - this
     function does not renumber it.
+
+    Raises:
+        DuplicateEmailError: ``user.email`` already belongs to another row -
+            translated here from the raw ``sqlalchemy.exc.IntegrityError`` so
+            ``services/`` never needs to import SQLAlchemy itself.
     """
     wrapped_dek, nonce = key_provider.wrap_dek(dek, user_id=user.id, key_version=user.data_key_ref)
-    with user_scoped_session(user.id) as session:
-        session.add(
-            UserModel(
-                id=user.id,
-                email=user.email,
-                password_hash=user.password_hash,
-                status=user.status.value,
-                data_key_ref=user.data_key_ref,
-                next_event_seq=1,
-                created_at=user.created_at,
-                deleted_at=user.deleted_at,
+    try:
+        with user_scoped_session(user.id) as session:
+            session.add(
+                UserModel(
+                    id=user.id,
+                    email=user.email,
+                    password_hash=user.password_hash,
+                    status=user.status.value,
+                    data_key_ref=user.data_key_ref,
+                    next_event_seq=1,
+                    created_at=user.created_at,
+                    deleted_at=user.deleted_at,
+                )
             )
-        )
-        session.add(
-            UserDataKeyModel(
-                id=uuid4(),
-                user_id=user.id,
-                key_version=user.data_key_ref,
-                wrapped_dek=wrapped_dek,
-                nonce=nonce,
-                created_at=user.created_at,
+            session.add(
+                UserDataKeyModel(
+                    id=uuid4(),
+                    user_id=user.id,
+                    key_version=user.data_key_ref,
+                    wrapped_dek=wrapped_dek,
+                    nonce=nonce,
+                    created_at=user.created_at,
+                )
             )
-        )
+            session.flush()
+    except IntegrityError as exc:
+        msg = f"email {user.email!r} is already registered"
+        raise DuplicateEmailError(msg) from exc
 
 
 def get_user(user_id: UserId) -> User | None:
@@ -66,6 +79,50 @@ def get_user(user_id: UserId) -> User | None:
         if row is None:
             return None
         return _to_domain(row)
+
+
+class UserCredentials(NamedTuple):
+    """Exactly what login needs - not a full :class:`User` (M6-API planning).
+
+    ``created_at``/``deleted_at`` are not part of ``auth_lookup_by_email``'s
+    projection and are not needed to authenticate; fabricating them to force
+    this into a full ``User`` would be exactly the kind of unearned field
+    principle 15 warns against.
+    """
+
+    id: UserId
+    password_hash: str
+    status: UserStatus
+    data_key_ref: int
+
+
+def find_user_by_email(email: str) -> UserCredentials | None:
+    """Look up a user's login-relevant fields by email - a pre-authentication lookup.
+
+    Uses the narrow ``auth_lookup_by_email`` SECURITY DEFINER function
+    (``migrations/versions/0002_auth_and_idempotency.py``), not
+    :func:`~mindtrace.db.session.user_scoped_session`: the caller does not
+    know ``user_id`` yet - establishing it is the whole point of logging in -
+    and a bare :func:`~mindtrace.db.session.get_session` would see zero
+    ``users`` rows under RLS regardless of the ``WHERE`` clause. Duplicate-
+    email detection at registration does not need this: ``users.email``'s
+    own ``UNIQUE`` constraint is enforced against all physical rows
+    regardless of RLS visibility.
+    """
+    with get_session() as session:
+        row = (
+            session.execute(text("SELECT * FROM auth_lookup_by_email(:email)"), {"email": email})
+            .mappings()
+            .first()
+        )
+        if row is None:
+            return None
+        return UserCredentials(
+            id=UserId(row["id"]),
+            password_hash=row["password_hash"],
+            status=UserStatus(row["status"]),
+            data_key_ref=row["data_key_ref"],
+        )
 
 
 def destroy_user_data_key(*, user_id: UserId, key_version: int, destroyed_at: datetime) -> bool:
