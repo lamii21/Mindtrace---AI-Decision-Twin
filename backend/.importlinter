@@ -22,6 +22,15 @@
 # each other). Still no persistence/API/frameworks: orchestration-is-
 # contained forbids mindtrace.events too (no event sourcing in M6-B's
 # in-memory pipeline).
+#
+# M6-Persistence/Foundation note: mindtrace.db and mindtrace.security exist
+# now (ADR-009). Both sit in the same layer-1 tier as engines/events/llm -
+# `db` is the only module permitted `sqlalchemy`/`alembic`; `security` is
+# the only module (besides the future KMS adapter) permitted to touch key
+# material. Per ADR-009, `db` and `security` are mutually isolated: `db`
+# needs a `KeyProvider` but takes it as a Protocol parameter rather than
+# importing `security.keyring` directly, so neither ever imports the other -
+# db-is-contained/security-is-contained enforce this in both directions.
 
 [importlinter]
 root_package = mindtrace
@@ -181,6 +190,61 @@ forbidden_modules =
     mindtrace.llm
     mindtrace.orchestration
     mindtrace.db
+    mindtrace.security
+
+[importlinter:contract:db-is-contained]
+name = db depends on domain + events only: sqlalchemy/alembic confined here, never security
+type = forbidden
+source_modules =
+    mindtrace.db
+forbidden_modules =
+    fastapi
+    starlette
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.llm
+    mindtrace.orchestration
+    mindtrace.security
+    mindtrace.observability
+    mindtrace.workers
+
+[importlinter:contract:security-is-contained]
+name = security depends on domain only: never db (ADR-009 mutual isolation)
+type = forbidden
+source_modules =
+    mindtrace.security
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.events
+    mindtrace.llm
+    mindtrace.orchestration
+    mindtrace.db
+    mindtrace.observability
+    mindtrace.workers
 
 [importlinter:contract:provider-sdks-isolated]
 name = Provider SDKs only under mindtrace.llm.providers
@@ -192,6 +256,8 @@ source_modules =
     mindtrace.orchestration
     mindtrace.api
     mindtrace.config
+    mindtrace.db
+    mindtrace.security
 forbidden_modules =
     anthropic
     openai
@@ -206,3 +272,11 @@ layers =
     mindtrace.orchestration
     mindtrace.engines | mindtrace.events | mindtrace.llm
     mindtrace.domain
+# mindtrace.db and mindtrace.security are deliberately NOT modelled in this
+# strict total-order layers contract: db's one real cross-edge (db -> events,
+# to implement EventStore - ADR-001) doesn't fit a layers contract's
+# mutually-exclusive-siblings semantics without also permitting db -> engines/
+# llm, which is not wanted. Their exact allowed edges are instead fully
+# pinned by the standalone db-is-contained/security-is-contained contracts
+# below (domain [+ events for db] only, and mutually isolated from each
+# other per ADR-009).

@@ -17,6 +17,7 @@ from mindtrace.domain.confidence import (
     EnsembleObservation,
     ExtractionSignal,
 )
+from mindtrace.domain.consent import ConsentRecord
 from mindtrace.domain.decision import (
     Contribution,
     DecisionResult,
@@ -25,10 +26,12 @@ from mindtrace.domain.decision import (
     FactorVector,
     WeightVector,
 )
+from mindtrace.domain.decision_record import Decision, DecisionOption
 from mindtrace.domain.enums import (
     BeliefType,
     ChoiceOption,
     ConsentScope,
+    DecisionCategory,
     DecisionOutcome,
     DecisionStatus,
     EpistemicState,
@@ -46,6 +49,7 @@ from mindtrace.domain.enums import (
     ScaleLevel,
     SelfReportReliability,
     UncertainReason,
+    UserStatus,
 )
 from mindtrace.domain.errors import (
     DomainError,
@@ -64,6 +68,8 @@ from mindtrace.domain.factors import (
     parse_factor_taxonomy,
 )
 from mindtrace.domain.ids import (
+    ConsentRecordId,
+    DecisionId,
     DispositionId,
     EventId,
     EvidenceId,
@@ -102,6 +108,7 @@ from mindtrace.domain.traits import (
     load_trait_model,
     parse_trait_model,
 )
+from mindtrace.domain.user import User
 
 __all__ = [
     "BeliefType",
@@ -111,9 +118,15 @@ __all__ = [
     "ChoiceOption",
     "ConfidenceInputs",
     "ConfidenceResult",
+    "ConsentRecord",
+    "ConsentRecordId",
     "ConsentScope",
     "Contribution",
     "CredibleInterval",
+    "Decision",
+    "DecisionCategory",
+    "DecisionId",
+    "DecisionOption",
     "DecisionOutcome",
     "DecisionResult",
     "DecisionStatus",
@@ -171,7 +184,9 @@ __all__ = [
     "TraitModel",
     "TraitReport",
     "UncertainReason",
+    "User",
     "UserId",
+    "UserStatus",
     "WeightPosterior",
     "WeightVector",
     "classify_epistemic_state",

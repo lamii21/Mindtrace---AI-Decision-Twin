@@ -158,6 +158,36 @@ class DecisionStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class DecisionCategory(StrEnum):
+    """A decision's coarse category (``docs/api/08-api-contracts.md`` s4, AG-5).
+
+    Declared now, ahead of the CRUD milestone that exposes it over HTTP,
+    because the M6 persistence foundation (this milestone) needs a concrete
+    type for ``Decision.category`` and the API contract already pins these
+    exact values - the same reasoning ``BeliefType`` was declared ahead of its
+    producer in M2.
+    """
+
+    CAREER = "career"
+    EDUCATION = "education"
+    PROJECT = "project"
+    PURCHASE = "purchase"
+    RELATIONSHIP = "relationship"
+    OTHER = "other"
+
+
+class UserStatus(StrEnum):
+    """A user account's lifecycle state (``docs/architecture/02-domain-model.md`` AG-1).
+
+    Only the two states AG-1's lifecycle prose names
+    (``created -> (active) -> deletion_requested -> erasure job``) - erasure
+    itself tombstones the row rather than adding a third live status.
+    """
+
+    ACTIVE = "active"
+    DELETION_REQUESTED = "deletion_requested"
+
+
 class Polarity(StrEnum):
     """Whether a piece of evidence supports or contradicts a belief."""
 

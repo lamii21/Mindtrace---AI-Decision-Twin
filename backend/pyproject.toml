@@ -15,6 +15,10 @@ dependencies = [
     "PyYAML>=6.0,<7",
     "jsonschema>=4.21,<5",
     "fastapi>=0.115,<1",
+    "sqlalchemy>=2.0,<3",
+    "psycopg[binary]>=3.1,<4",
+    "alembic>=1.13,<2",
+    "cryptography>=43,<45",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +32,7 @@ dev = [
     "httpx2>=2.0,<3",  # starlette.testclient's current transport dependency
     "types-PyYAML>=6.0,<7",
     "types-jsonschema>=4.21,<5",
+    "testcontainers[postgres]>=4.8,<5",
 ]
 
 [tool.hatch.build.targets.wheel]
