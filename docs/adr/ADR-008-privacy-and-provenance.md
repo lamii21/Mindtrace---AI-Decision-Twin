@@ -38,6 +38,13 @@ architecture.
    **per-user data key**. Data keys are wrapped by a master key held in a KMS (prod) or an
    env-injected key (dev); the DB stores only ciphertext + a key reference. Embeddings and
    derived numbers are stored cleartext (needed for function; not human-readable prose).
+   **Addendum (2026-09-26, M6 planning):** "designed in from milestone 1" means this is required
+   starting with the *first* production-capable persistence migration — the milestone-M6 file
+   list in `docs/11-roadmap-milestones.md` omitting `security/keyring.py`/`db/crypto.py` by name
+   is a gap in that document, not license to ship plaintext and encrypt later. The concrete AEAD
+   choice, envelope format, per-user key hierarchy, and the SQLAlchemy-`TypeDecorator`-vs-
+   repository-layer boundary decision are resolved in **ADR-009**, which this item defers to
+   rather than duplicating.
 6. **Crypto-shredding = deletion.** Account erasure destroys the user's data key → all
    ciphertext is unrecoverable immediately, and a background job then hard-deletes rows. Topic
    deletion uses the ADR-001 event mechanism + row removal + re-derivation, not crypto-shred.

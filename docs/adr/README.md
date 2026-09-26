@@ -13,7 +13,8 @@ An ADR is immutable once `accepted`; a reversal is a new ADR that supersedes it.
 | [006](ADR-006-computed-confidence.md) | Computed model confidence | accepted |
 | [007](ADR-007-parallel-twin-architecture.md) | Parallel twin architecture | accepted |
 | [008](ADR-008-privacy-and-provenance.md) | Privacy and provenance | accepted |
+| [009](ADR-009-encryption-key-management.md) | Encryption-at-rest key management and envelope | accepted |
 
-Cross-cutting invariant all eight serve: **beliefs are a pure function of `(event log,
+Cross-cutting invariant all nine serve: **beliefs are a pure function of `(event log,
 engine_version, factor_schema_version, seed)`** and the LLM never contributes a number used in a
 calculation.

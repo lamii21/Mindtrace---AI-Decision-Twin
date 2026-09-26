@@ -24,7 +24,12 @@ only as the `arq` broker and for ephemeral rate-limit counters — never as a so
   indexed lookup; the transitive case (belief supported by belief) is a recursive CTE bounded to
   depth ≤ 5. Deletion cascade is a `SELECT belief_id WHERE source_id = ANY(:removed)` feeding the
   re-derivation queue.
-- Field-level encryption via a SQLAlchemy `TypeDecorator` (AEAD, per-user key) on prose columns.
+- Field-level encryption (AEAD, per-user key) on prose columns. **Correction (2026-09-26, ADR-009):**
+  not a SQLAlchemy `TypeDecorator` — `process_bind_param`/`process_result_value` have no access to
+  the current `user_id`, so a per-user key cannot reach it without a thread-local/contextvar
+  carrying request context, which this architecture avoids elsewhere (engines take `now` as a
+  parameter rather than reading the wall clock). Encryption is instead explicit
+  `db/crypto.py` functions called from `db/repositories/`, per ADR-009.
 - Alembic migrations; a migration is mandatory for any `factors.yaml` / `traits.yaml` schema
   change (ADR-002/005 consequences).
 

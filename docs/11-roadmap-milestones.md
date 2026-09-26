@@ -169,17 +169,30 @@ smoke test (marked, not in the fast lane) does one real extraction.
 
 ## M6 — API skeleton: auth + memories + decisions CRUD 🔴
 
+**Prerequisite (added 2026-09-26, ADR-009).** M6 is also the first milestone that writes any
+prose column to a real database, so it is the milestone ADR-008's field-level encryption ("designed
+in from milestone 1, not bolted on") applies to. The file list below was written before that was
+made explicit and does not name the encryption files — it is amended, not superseded, by ADR-009:
+`security/keyring.py`, `db/crypto.py`, `db/types.py`, `db/models/user_data_key.py`, and the
+`cryptography` dependency are **also** required for M6, and `memory_event.payload`,
+`memory.content`, and `decision.{title,context,options,reasoning}` are encrypted columns from
+`migrations/0001_*.py` onward — never a plaintext-then-migrate path. See ADR-009 for the exact
+envelope, key hierarchy, and why the encryption boundary is explicit repository-layer functions
+rather than the SQLAlchemy `TypeDecorator` ADR-004 originally sketched.
+
 **Objective.** FastAPI app, JWT auth, `/v1/auth/*`, `/v1/memories` (create → event → **sync**
 projection), `/v1/decisions` CRUD, problem+json errors, ownership + RLS wiring, OpenAPI export.
 
 **Created.** `api/{app,deps,errors}.py`, `api/schemas/{auth,memory,decision,common,problem}.py`,
 `api/routers/{auth,memories,decisions}.py`, `services/{memory_service,decision_service}.py`,
-`security/auth.py`, `tests/api/{test_auth,test_memories,test_decisions,test_ownership,
+`security/{auth,keyring}.py`, `db/{crypto,types}.py`, `db/models/user_data_key.py`,
+`tests/api/{test_auth,test_memories,test_decisions,test_ownership,
 test_openapi_snapshot}.py`.
 
 **Modified.** `db/session.py` (per-request `SET app.user_id`), `conftest.py` (`client` fixture).
 
-**Dependencies.** `fastapi`, `uvicorn`, `httpx`, `pyjwt`, `argon2-cffi`, `pydantic-settings`.
+**Dependencies.** `fastapi`, `uvicorn`, `httpx`, `pyjwt`, `argon2-cffi`, `pydantic-settings`,
+`cryptography` (AES-256-GCM, ADR-009).
 
 **Tests.** register→login→me→refresh; create memory → event appended → projection row visible in
 `GET`; cross-tenant id → `404`; `extra` field → `422` problem+json; `/openapi.json` matches a

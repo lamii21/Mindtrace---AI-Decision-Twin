@@ -143,22 +143,27 @@ db/
 ├── base.py           # DeclarativeBase, naming conventions
 ├── session.py        # engine, sessionmaker, get_session
 ├── models/           # ORM classes — mirror the domain but ARE NOT the domain
-├── repositories/     # the only code that writes SQL / query expressions
-├── crypto.py         # SQLAlchemy TypeDecorator for field-level AEAD (encrypt on bind, decrypt on result)
-└── event_store.py    # concrete EventStore backed by the `memory_event` table
+│   └── user_data_key.py   # wrapped per-user DEKs (ADR-009) — never a raw key
+├── repositories/     # the only code that writes SQL / query expressions, and the only
+│                     # code that calls db/crypto.py's encrypt_field/decrypt_field
+├── crypto.py         # KeyProvider Protocol + encrypt_field/decrypt_field (AEAD; ADR-009 —
+│                     # explicit functions, not a SQLAlchemy TypeDecorator; see ADR-004 correction)
+├── types.py          # the encrypted envelope struct + binary pack/unpack (ADR-009)
+└── event_store.py    # concrete EventStore backed by the `memory_event` table (payload encrypted
+                       # below the EventStore Protocol boundary — events/ stays key-unaware)
 ```
 
-| Responsibility | Map domain objects to Postgres and back. House the repositories (query objects). Implement `EventStore`. Implement encrypted column types. |
+| Responsibility | Map domain objects to Postgres and back. House the repositories (query objects). Implement `EventStore`. Implement field-level encryption at the repository boundary (ADR-009). |
 |---|---|
-| Belongs here | `MemoryModel`, `DecisionModel`, `PredictionModel`, …; `MemoryRepository`, `EvidenceRepository`; recursive-CTE queries for the provenance graph; pgvector similarity queries; Alembic-visible metadata. |
-| Must NOT contain | Business rules (no "if margin < X return UNCERTAIN" here). MCDA. Confidence. Anything importing `engines/`. FastAPI. Prompt text. ORM models must not be returned past `services/` — routers see Pydantic DTOs, not ORM rows. |
+| Belongs here | `MemoryModel`, `DecisionModel`, `PredictionModel`, `UserDataKeyModel`, …; `MemoryRepository`, `EvidenceRepository`; recursive-CTE queries for the provenance graph; pgvector similarity queries; Alembic-visible metadata. |
+| Must NOT contain | Business rules (no "if margin < X return UNCERTAIN" here). MCDA. Confidence. Anything importing `engines/` or `security/` (mutually isolated per ADR-009 — `db/crypto.py` takes a `KeyProvider` as a parameter, it never imports `security.keyring`). FastAPI. Prompt text. ORM models must not be returned past `services/` — routers see Pydantic DTOs, not ORM rows. |
 
 ### `security/` — layer 1
 
 | Responsibility | Authentication (argon2 password hashing, JWT/session issuance), authorization (per-user ownership checks), per-user encryption key lifecycle, Postgres row-level-security policy definitions. |
 |---|---|
-| Belongs here | `hash_password`, `verify_password`, `issue_token`, `current_user` dependency helper (the FastAPI wiring is thin and lives in `api/deps.py`), `Keyring` (fetch/rotate per-user data keys from KMS or env-backed master key), RLS policy SQL. |
-| Must NOT contain | Domain logic. Direct engine calls. |
+| Belongs here | `hash_password`, `verify_password`, `issue_token`, `current_user` dependency helper (the FastAPI wiring is thin and lives in `api/deps.py`), `keyring.py`'s `EnvironmentKeyProvider`/`FakeKeyProvider` (structurally implement `db.crypto.KeyProvider` — ADR-009 — without importing `db/`; a future `KMSKeyProvider` is named, not built, until a production target is chosen), RLS policy SQL. |
+| Must NOT contain | Domain logic. Direct engine calls. Anything importing `db/` (mutually isolated per ADR-009 — the composition root in `services/`/`api/deps.py` wires a `security/` `KeyProvider` into a `db/` repository, not either package importing the other). |
 
 ### `observability/` — layer 1
 
