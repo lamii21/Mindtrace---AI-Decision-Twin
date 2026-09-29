@@ -1,4 +1,4 @@
-"""OpenAPI contract verification (M6-API planning s15/s21).
+"""OpenAPI contract verification (M6-API planning s15/s21; M7 planning s23 test N).
 
 Uses a bare ``TestClient`` (no DB session needed - OpenAPI generation never
 touches the database), but still gated behind ``requires_docker`` for
@@ -14,7 +14,7 @@ from tests.integration.conftest import requires_docker
 
 pytestmark = requires_docker
 
-_EXPECTED_M6_PATHS = {
+_EXPECTED_PATHS = {
     "/health",
     "/v1/auth/register",
     "/v1/auth/login",
@@ -27,6 +27,8 @@ _EXPECTED_M6_PATHS = {
     "/v1/decisions",
     "/v1/decisions/{decision_id}",
     "/v1/decisions/{decision_id}/simulations",
+    "/v1/simulate",
+    "/v1/simulations/{simulation_id}",
 }
 
 
@@ -35,21 +37,26 @@ def _spec() -> dict[str, object]:
 
 
 class TestExpectedRoutesExist:
-    def test_every_documented_m6_route_is_present(self) -> None:
+    def test_every_documented_route_is_present(self) -> None:
         spec = _spec()
         paths = set(spec["paths"].keys())  # type: ignore[attr-defined]
-        assert paths >= _EXPECTED_M6_PATHS
+        assert paths >= _EXPECTED_PATHS
+
+    def test_simulate_is_post_only(self) -> None:
+        spec = _spec()
+        methods = set(spec["paths"]["/v1/simulate"].keys())  # type: ignore[index]
+        assert methods == {"post"}
 
 
 class TestNoFutureScopeRoutes:
-    def test_simulate_is_not_in_the_openapi_spec(self) -> None:
-        spec = _spec()
-        paths = spec["paths"].keys()  # type: ignore[attr-defined]
-        assert "/v1/simulate" not in paths
-        assert not any("simulate" in path for path in paths)
+    def test_no_m8_plus_routes_exist(self) -> None:
+        """Twins, elicitation, evaluation, contradictions - all post-M7.
 
-    def test_no_m7_plus_routes_exist(self) -> None:
-        """Twins, elicitation, evidence, evaluation, contradictions - all post-M6."""
+        ``evidence``/``predictions`` are M7 domain *concepts* (persisted,
+        used internally by ``/v1/simulate``) but never their own URL path -
+        ``GET /v1/evidence/{type}/{id}``/``POST /v1/predictions/{id}/outcome``
+        are M9's routes, still absent here.
+        """
         spec = _spec()
         paths = spec["paths"].keys()  # type: ignore[attr-defined]
         forbidden_fragments = (
@@ -62,7 +69,7 @@ class TestNoFutureScopeRoutes:
         )
         for path in paths:
             for fragment in forbidden_fragments:
-                assert fragment not in path.lower(), f"unexpected M7+ route: {path}"
+                assert fragment not in path.lower(), f"unexpected M8+ route: {path}"
 
     def test_client_can_be_built_with_no_database_configured(self) -> None:
         """OpenAPI/route registration never touches the database (M6-API planning s11)."""

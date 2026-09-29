@@ -22,12 +22,11 @@ def test_health_response_is_deterministic_across_calls() -> None:
     assert first == second
 
 
-def test_app_exposes_exactly_the_m6_business_routes() -> None:
-    """As of M6-API, auth/memories/decisions routers are wired in.
+def test_app_exposes_exactly_the_current_business_routes() -> None:
+    """As of M7, auth/memories/decisions/simulate routers are wired in.
 
-    Superseded the M1-era "no business routes yet" assertion now that they
-    exist; still guards against accidentally adding anything from M7+
-    (simulate, twins, elicitation, evidence, evaluation, contradictions).
+    Still guards against accidentally adding anything from M8+ (twins,
+    elicitation, evaluation, contradictions).
 
     Reads the OpenAPI spec rather than walking ``app.routes`` directly:
     FastAPI's router composition wraps included routers in an internal
@@ -48,5 +47,6 @@ def test_app_exposes_exactly_the_m6_business_routes() -> None:
         "/v1/decisions",
         "/v1/decisions/{decision_id}",
         "/v1/decisions/{decision_id}/simulations",
+        "/v1/simulate",
+        "/v1/simulations/{simulation_id}",
     }
-    assert "/v1/simulate" not in paths

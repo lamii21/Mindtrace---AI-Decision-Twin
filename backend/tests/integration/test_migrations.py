@@ -34,6 +34,9 @@ _EXPECTED_TABLES = {
     "decision",
     "refresh_token",
     "idempotency_key",
+    "simulation",
+    "prediction",
+    "evidence",
     "alembic_version",
 }
 
@@ -162,6 +165,84 @@ def test_0001_data_survives_upgrade_to_0002_and_downgrade_back_to_0001(
         assert still_there == f"{user_id}@example.dev"
 
         command.upgrade(config, "0002")
+    finally:
+        os.environ.pop("MINDTRACE_DATABASE_URL", None)
+        get_settings.cache_clear()
+        db_session.reset_engine_for_tests()
+
+
+def test_0002_data_survives_upgrade_to_0003_and_downgrade_back_to_0002(
+    fresh_owner_url: str,
+) -> None:
+    """current 0002 -> upgrade 0003 -> verify -> downgrade 0002 -> upgrade 0003.
+
+    Existing 0002-era data (a user + a refresh_token row) must survive the
+    whole round trip - 0003 only adds simulation/prediction/evidence, it
+    never touches 0001/0002's tables (M7 planning s5).
+    """
+    config = _alembic_config()
+    os.environ["MINDTRACE_DATABASE_URL"] = fresh_owner_url
+    get_settings.cache_clear()
+    try:
+        command.upgrade(config, "0002")
+
+        engine = create_engine(fresh_owner_url)
+        user_id = uuid.uuid4()
+        token_id = uuid.uuid4()
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO users (id, email, password_hash, status, data_key_ref, "
+                        "next_event_seq, created_at) VALUES "
+                        "(:id, :email, 'hash', 'active', 1, 1, now())"
+                    ),
+                    {"id": user_id, "email": f"{user_id}@example.dev"},
+                )
+                conn.execute(
+                    text(
+                        "INSERT INTO refresh_token (id, user_id, family_id, token_hash, "
+                        "issued_at, expires_at) VALUES "
+                        "(:id, :user_id, :family_id, 'hash', now(), now() + interval '1 day')"
+                    ),
+                    {"id": token_id, "user_id": user_id, "family_id": uuid.uuid4()},
+                )
+        finally:
+            engine.dispose()
+
+        command.upgrade(config, "0003")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                survived: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+                token_survived: uuid.UUID = conn.execute(
+                    text("SELECT id FROM refresh_token WHERE id = :id"), {"id": token_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert tables == _EXPECTED_TABLES
+        assert survived == f"{user_id}@example.dev"
+        assert token_survived == token_id
+
+        command.downgrade(config, "0002")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables_after_downgrade = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                still_there: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert "simulation" not in tables_after_downgrade
+        assert "prediction" not in tables_after_downgrade
+        assert "evidence" not in tables_after_downgrade
+        assert still_there == f"{user_id}@example.dev"
+
+        command.upgrade(config, "0003")
     finally:
         os.environ.pop("MINDTRACE_DATABASE_URL", None)
         get_settings.cache_clear()
