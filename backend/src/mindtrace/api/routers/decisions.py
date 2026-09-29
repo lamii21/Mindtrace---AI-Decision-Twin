@@ -1,4 +1,4 @@
-"""``/v1/decisions`` (``docs/api/08`` s4). No `/v1/simulate` here - that is M7."""
+"""``/v1/decisions`` (``docs/api/08`` s4). ``/v1/simulate`` itself lives in ``simulate.py`` (M7)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Header, Query, status
 from mindtrace.api.deps import get_current_user_id, get_key_provider, now
 from mindtrace.api.idempotency import fingerprint
 from mindtrace.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, paginate
+from mindtrace.api.routers.simulate import to_simulation_out
 from mindtrace.api.schemas.common import Page
 from mindtrace.api.schemas.decision import (
     DecisionCategoryIn,
@@ -18,8 +19,8 @@ from mindtrace.api.schemas.decision import (
     DecisionPatch,
     DecisionStatusOut,
     OptionIn,
-    SimulationSummary,
 )
+from mindtrace.api.schemas.simulation import SimulationSummary
 from mindtrace.db.crypto import KeyProvider
 from mindtrace.domain.decision_record import Decision, DecisionOption
 from mindtrace.domain.enums import DecisionCategory, DecisionStatus
@@ -202,9 +203,20 @@ def patch_decision(
 @router.get("/{decision_id}/simulations", response_model=Page[SimulationSummary])
 def list_simulations(
     decision_id: UUID,
+    cursor: str | None = None,
+    limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     user_id: UserId = Depends(get_current_user_id),
     key_provider: KeyProvider = Depends(get_key_provider),
 ) -> Page[SimulationSummary]:
-    """Always an empty page in M6 - no ``Simulation`` table exists yet (M7)."""
-    decision_service.list_simulations(user_id, DecisionId(decision_id), key_provider=key_provider)
-    return Page(items=[], next_cursor=None)
+    """Every simulation run against one of the caller's own decisions, newest first."""
+    pairs = decision_service.list_simulations(
+        user_id, DecisionId(decision_id), key_provider=key_provider
+    )
+    page, next_cursor = paginate(
+        pairs,
+        sort_key=lambda pair: (pair[0].created_at.isoformat(), str(pair[0].id)),
+        cursor=cursor,
+        limit=limit,
+    )
+    items = [to_simulation_out(user_id, simulation, prediction) for simulation, prediction in page]
+    return Page(items=items, next_cursor=next_cursor)

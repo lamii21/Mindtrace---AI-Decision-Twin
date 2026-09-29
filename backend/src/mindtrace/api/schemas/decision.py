@@ -80,15 +80,3 @@ class DecisionPatch(BaseModel):
     chosen_option: str | None = None
     reasoning: str | None = None
     status: DecisionStatusOut | None = None
-
-
-class SimulationSummary(BaseModel):
-    """One item of ``GET /v1/decisions/{id}/simulations``.
-
-    Never populated in M6, since no ``Simulation`` table exists yet (M7).
-    """
-
-    model_config = _FrozenExtraForbid
-
-    simulation_id: UUID
-    created_at: datetime

@@ -34,15 +34,33 @@
 #
 # M6-API note: mindtrace.services exists now (`memory_service`,
 # `decision_service`, `auth_service`) - layer 2, coordinating `db`/
-# `security`/`events` behind the HTTP boundary. It never imports
-# `mindtrace.orchestration` (M6-API must not call `orchestration.simulate()`
-# - that is M7's job), never `mindtrace.engines`/`mindtrace.llm` (no
-# simulation math in M6), and never `sqlalchemy` directly (SQL stays in
-# `db/repositories/`). `mindtrace.api` gets its own contract for the first
-# time too: no `sqlalchemy`/`mindtrace.db` in routers (`services/` is the
-# only caller of `db/`), no `mindtrace.orchestration`/`mindtrace.engines`/
-# `mindtrace.llm` (`security.auth` is the one exception - token
-# verification is an API-boundary concern the docs place in `security/`).
+# `security`/`events` behind the HTTP boundary, and never `sqlalchemy`
+# directly (SQL stays in `db/repositories/`). `mindtrace.api` gets its own
+# contract for the first time too: no `sqlalchemy`/`mindtrace.db` in routers
+# (`services/` is the only caller of `db/`); `security.auth` is the one
+# framework-adjacent exception - token verification is an API-boundary
+# concern the docs place in `security/`.
+#
+# M7 note: `services.decision_service` is now the one legitimate caller of
+# `orchestration.simulate()` (M7 planning s3 - "reuse it, do not reproduce
+# this sequence inside api/services/db"), so `mindtrace.orchestration` is no
+# longer forbidden from `services-is-contained`/`api-is-contained`'s
+# transitively-checked forbidden lists - same reasoning already applied to
+# `sqlalchemy`/`mindtrace.db` there: forbidding a module transitively
+# reachable through a legitimate direct dependency (`services ->
+# orchestration`, and now `api -> services -> orchestration`) would make
+# that dependency impossible to express. `mindtrace.engines`/`mindtrace.llm`
+# are removed alongside it for the identical reason one layer further out
+# (`orchestration -> engines`/`llm`, so `services`/`api` reach them
+# transitively too the moment `services` legitimately imports
+# `orchestration`) - `services` also needs `engines.preference.prior.
+# initial_posterior` directly (the M7 cold-start posterior, no new math) and
+# `llm.client.LLMClient` as a type (the DI seam), and `api.deps` needs
+# `llm.client`/`llm.providers.unavailable` directly to construct the default
+# client. "no engine math outside orchestration/engines" stays a real rule,
+# enforced by the new `simulation-service-is-the-only-orchestration-caller`
+# contract below rather than by the blanket module-level ban this transitive
+# checker can no longer express once the one legitimate edge exists.
 
 [importlinter]
 root_package = mindtrace
@@ -259,7 +277,7 @@ forbidden_modules =
     mindtrace.workers
 
 [importlinter:contract:services-is-contained]
-name = services depends on domain/db/security/events only: no HTTP, no orchestration/engines/llm
+name = services depends on domain/db/security/events/orchestration only: no HTTP
 type = forbidden
 source_modules =
     mindtrace.services
@@ -275,22 +293,43 @@ forbidden_modules =
     httpx2
     mindtrace.api
     mindtrace.config
-    mindtrace.engines
-    mindtrace.llm
-    mindtrace.orchestration
     mindtrace.observability
     mindtrace.workers
-# sqlalchemy/alembic deliberately NOT listed: import-linter's `forbidden`
-# contract checks the full transitive graph, and services legitimately
-# depends on db.repositories, which depends on sqlalchemy - forbidding it
-# here would make that legitimate edge impossible to express. "services
-# never writes raw SQL itself" is a real rule, but it is a code-review
-# convention (db/repositories/ is the only place SQLAlchemy constructs are
-# written), not one this transitive-checking mechanism can enforce without
-# also forbidding the one dependency services is supposed to have.
+# sqlalchemy/alembic/mindtrace.orchestration/mindtrace.engines/mindtrace.llm
+# deliberately NOT listed: import-linter's `forbidden` contract checks the
+# full transitive graph, and services legitimately depends on
+# db.repositories (-> sqlalchemy) and, since M7, on orchestration.simulate()
+# (-> engines, llm) - forbidding any of them here would make those
+# legitimate edges impossible to express. "services never writes raw SQL
+# itself" / "no engine math outside orchestration" are real rules, but they
+# are code-review conventions (db/repositories/ is the only place
+# SQLAlchemy constructs are written; orchestration.simulate() is the only
+# place decision_service calls into engines/llm - see the
+# simulation-service-is-the-only-orchestration-caller contract below for the
+# one piece of this that *is* lint-enforceable), not something this
+# transitive-checking mechanism can enforce without also forbidding a
+# dependency services is supposed to have.
+
+[importlinter:contract:simulation-service-is-the-only-orchestration-caller]
+name = Only decision_service may reach orchestration/engines/llm from services
+type = forbidden
+source_modules =
+    mindtrace.services.auth_service
+    mindtrace.services.memory_service
+    mindtrace.services.idempotency_service
+forbidden_modules =
+    mindtrace.orchestration
+    mindtrace.engines
+    mindtrace.llm
+# The precise version of "services never does simulation math" that the
+# broader services-is-contained contract can no longer state directly (see
+# its own comment): every OTHER services module stays exactly as pinned
+# before M7 - auth/memory/idempotency have no business anywhere near
+# orchestration, engines, or an LLM client. decision_service is deliberately
+# excluded from source_modules here; it is the one M7-designated caller.
 
 [importlinter:contract:api-is-contained]
-name = api depends on services/security/domain only: no orchestration/engines/llm in routers
+name = api depends on services/security/domain only: no HTTP-adjacent 3rd parties
 type = forbidden
 source_modules =
     mindtrace.api
@@ -300,17 +339,26 @@ forbidden_modules =
     anthropic
     openai
     langchain
-    mindtrace.engines
-    mindtrace.llm
-    mindtrace.orchestration
     mindtrace.workers
-# sqlalchemy/alembic/mindtrace.db deliberately NOT listed, same reasoning as
-# services-is-contained: api legitimately depends on services, which
-# legitimately depends on db - import-linter's `forbidden` contract checks
-# the full transitive graph, so listing them here would forbid the one
-# dependency chain this API is built on. "routers never construct SQL/ORM
-# queries themselves" is enforced by code review (only db/repositories/
-# constructs SQLAlchemy statements), not by this mechanism.
+# sqlalchemy/alembic/mindtrace.db/mindtrace.llm/mindtrace.orchestration/
+# mindtrace.engines deliberately NOT listed: import-linter's `forbidden`
+# contract checks the full transitive graph, and api legitimately depends on
+# services, which legitimately depends on db (M6-Persistence) and, since M7,
+# on orchestration (-> engines) - forbidding any of them here would make
+# those legitimate edges impossible to express (confirmed empirically:
+# listing `mindtrace.orchestration`/`mindtrace.engines` here breaks the
+# contract on the real `api.routers.decisions -> services.decision_service
+# -> orchestration/engines.confidence.compute` edge). `mindtrace.llm` is
+# additionally a *direct* api dependency: `api/deps.py` builds the default
+# `LLMClient` (`llm.providers.unavailable.UnavailableLLMClient`) for
+# dependency injection - the same reason `security.auth` was already
+# exempted. "routers never construct SQL/ORM queries or call engines/
+# orchestration themselves" is enforced by code review (only
+# db/repositories/ constructs SQLAlchemy statements; only decision_service
+# calls orchestration.simulate() - see
+# simulation-service-is-the-only-orchestration-caller above), not by this
+# mechanism, where every one of these dependencies is transitively
+# legitimate.
 
 [importlinter:contract:provider-sdks-isolated]
 name = Provider SDKs only under mindtrace.llm.providers

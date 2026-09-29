@@ -21,6 +21,7 @@ from mindtrace.services.errors import (
     InvalidChosenOptionError,
     InvalidStatusTransitionError,
     ResourceNotFoundError,
+    SimulationInProgressError,
     SituationFrozenError,
 )
 
@@ -121,6 +122,17 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             title="Validation Error",
             detail="chosen_option does not name one of this decision's options.",
+        )
+
+    @app.exception_handler(SimulationInProgressError)
+    async def _simulation_in_progress(
+        request: Request, _exc: SimulationInProgressError
+    ) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conflict",
+            detail="A simulation for this Idempotency-Key is already in progress. Retry shortly.",
         )
 
     @app.exception_handler(InvalidCredentialsError)

@@ -6,15 +6,16 @@ from fastapi import FastAPI
 
 from mindtrace import __version__
 from mindtrace.api.errors import register_exception_handlers
-from mindtrace.api.routers import auth, decisions, health, memories
+from mindtrace.api.routers import auth, decisions, health, memories, simulate
 
 
 def create_app() -> FastAPI:
     """Build the MINDTRACE API.
 
-    M6-API wires auth/memories/decisions. No `/v1/simulate` route exists -
-    that is M7's; no orchestration, engine, or LLM call happens anywhere in
-    this app (M6-API planning s2's hard scope boundary).
+    M6-API wires auth/memories/decisions. M7 adds `/v1/simulate` +
+    `/v1/simulations/{id}`, the one HTTP-reachable path that calls
+    `orchestration.simulate()` (via `services.decision_service`) - no other
+    route in this app does, and no route calls an engine directly.
     """
     app = FastAPI(
         title="MINDTRACE API",
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(memories.router)
     app.include_router(decisions.router)
+    app.include_router(simulate.router, prefix="/v1")
     register_exception_handlers(app)
     return app
 

@@ -16,6 +16,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from mindtrace.config import get_settings
 from mindtrace.db.crypto import KeyProvider
 from mindtrace.domain.ids import UserId
+from mindtrace.llm.client import LLMClient
+from mindtrace.llm.providers.unavailable import UnavailableLLMClient
 from mindtrace.security.auth import decode_access_token
 from mindtrace.security.keyring import EnvironmentKeyProvider
 from mindtrace.services.auth_service import AuthConfig
@@ -45,6 +47,16 @@ def reset_key_provider_cache_for_tests() -> None:
     is actually picked up.
     """
     _cached_key_provider.cache_clear()
+
+
+def get_llm_client() -> LLMClient:
+    """The process-wide ``LLMClient`` (M7 planning s9).
+
+    No real provider adapter exists in this build - see
+    ``llm/providers/unavailable.py``'s module docstring for exactly what
+    that means and how a real provider gets wired in later.
+    """
+    return UnavailableLLMClient()
 
 
 def get_auth_config() -> AuthConfig:
