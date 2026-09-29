@@ -45,3 +45,15 @@ class InvalidStatusTransitionError(ServiceError):
 
 class InvalidChosenOptionError(ServiceError):
     """``chosen_option`` does not name one of the decision's own ``options``."""
+
+
+class SimulationInProgressError(ServiceError):
+    """A simulation for this ``Idempotency-Key`` was claimed but has not finished persisting yet.
+
+    The narrow, honest residual of M7's reserve-before-compute idempotency
+    design (``services/decision_service.py``'s ``simulate()``): the winner
+    of a genuinely concurrent race is still running the (expensive) LLM
+    call/orchestration when the loser's request arrives. Rather than block
+    the request or silently run a second LLM call, this reports the
+    in-flight state plainly - the caller retries.
+    """
