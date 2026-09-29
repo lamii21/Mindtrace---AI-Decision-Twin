@@ -147,6 +147,32 @@ def update_decision(
         return _decrypt(row, session=session, user_id=user_id, key_provider=key_provider)
 
 
+def mark_simulated(session: Session, *, decision_id: DecisionId) -> None:
+    """Advance a decision to ``simulated`` - forward-only, and only from ``draft``.
+
+    Unlike every other write in this module, this does not open its own
+    ``user_scoped_session`` - it is one write inside ``simulation_repository.
+    persist_simulation``'s single transaction, so the ``Simulation``/
+    ``Prediction``/``Evidence`` rows and this status transition either all
+    commit together or none do (M7 planning s16/s19). There is deliberately
+    no PATCH-reachable path to this status (``services/decision_service.py``'s
+    own ``_validate_transition``) - only a completed simulation may cause it.
+
+    Re-simulating an already ``simulated``/``committed`` decision (the
+    roadmap's own "re-running simulate creates a new Simulation, never
+    mutates the old") must not regress ``committed`` back to ``simulated`` -
+    AG-5's lifecycle is monotonic, so this only writes the column when the
+    current status is still ``draft``; a decision that already reached
+    ``simulated`` or beyond keeps its status exactly as-is.
+    """
+    row = session.get(DecisionModel, decision_id)
+    if row is None:  # pragma: no cover - caller already holds a live FK to this row
+        msg = f"decision {decision_id} not found"
+        raise ValueError(msg)
+    if row.status == DecisionStatus.DRAFT.value:
+        row.status = DecisionStatus.SIMULATED.value
+
+
 def _options_json(options: tuple[DecisionOption, ...]) -> str:
     return json.dumps(
         [option.model_dump(mode="json") for option in options],

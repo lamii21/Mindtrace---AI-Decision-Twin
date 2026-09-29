@@ -77,6 +77,8 @@ from mindtrace.domain.ids import (
     FactorId,
     InterviewItemId,
     MemoryId,
+    PredictionId,
+    SimulationId,
     UserId,
 )
 from mindtrace.domain.interview import (
@@ -91,6 +93,13 @@ from mindtrace.domain.memory import Memory
 from mindtrace.domain.provenance import classify_epistemic_state
 from mindtrace.domain.refresh_token import RefreshToken
 from mindtrace.domain.schema_bundle import SchemaBundle, load_schema_bundle
+from mindtrace.domain.simulation import (
+    ExtractionProvenance,
+    Prediction,
+    Simulation,
+    SimulationExtraction,
+    TwinConfigResult,
+)
 from mindtrace.domain.traits import (
     BetaPrior,
     CredibleInterval,
@@ -148,6 +157,7 @@ __all__ = [
     "EvidenceTag",
     "ExtractionFailureType",
     "ExtractionMode",
+    "ExtractionProvenance",
     "ExtractionSignal",
     "FactorDirection",
     "FactorId",
@@ -172,6 +182,8 @@ __all__ = [
     "PairwiseObservation",
     "Polarity",
     "PosteriorKind",
+    "Prediction",
+    "PredictionId",
     "PreferencePosterior",
     "ProvenanceSource",
     "RefreshToken",
@@ -183,8 +195,12 @@ __all__ = [
     "SchemaStructureError",
     "SchemaValidationError",
     "SelfReportReliability",
+    "Simulation",
+    "SimulationExtraction",
+    "SimulationId",
     "TraitModel",
     "TraitReport",
+    "TwinConfigResult",
     "UncertainReason",
     "User",
     "UserId",
