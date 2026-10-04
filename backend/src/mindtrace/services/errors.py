@@ -57,3 +57,15 @@ class SimulationInProgressError(ServiceError):
     the request or silently run a second LLM call, this reports the
     in-flight state plainly - the caller retries.
     """
+
+
+class InvalidInterviewItemError(ServiceError):
+    """An answer names an ``item_id`` that is not in the current interview bank."""
+
+
+class SessionAlreadyFinalizedError(ServiceError):
+    """The session has already been finalized - answers/finalize can no longer be submitted."""
+
+
+class InterviewNotCompleteError(ServiceError):
+    """``:finalize`` was called before every fixed-order item has an answer."""

@@ -317,16 +317,38 @@ source_modules =
     mindtrace.services.auth_service
     mindtrace.services.memory_service
     mindtrace.services.idempotency_service
+    mindtrace.services.elicitation_service
 forbidden_modules =
     mindtrace.orchestration
-    mindtrace.engines
     mindtrace.llm
 # The precise version of "services never does simulation math" that the
 # broader services-is-contained contract can no longer state directly (see
 # its own comment): every OTHER services module stays exactly as pinned
 # before M7 - auth/memory/idempotency have no business anywhere near
 # orchestration, engines, or an LLM client. decision_service is deliberately
-# excluded from source_modules here; it is the one M7-designated caller.
+# excluded from source_modules here; it is the M7-designated
+# orchestration/llm caller. elicitation_service (M8) is listed here too for
+# orchestration/llm (it calls neither - no simulation, no LLM, in the
+# Twin Interview flow) but is pinned separately below for `engines`, since
+# it legitimately needs `engines.elicitation`/`engines.preference` while
+# still having no business calling `orchestration`/an LLM client.
+
+[importlinter:contract:elicitation-service-engines-scope]
+name = elicitation_service may reach engines (preference/elicitation only), never orchestration/llm
+type = forbidden
+source_modules =
+    mindtrace.services.auth_service
+    mindtrace.services.memory_service
+    mindtrace.services.idempotency_service
+forbidden_modules =
+    mindtrace.engines
+# A second, narrower pass at the same guarantee: unlike the contract above
+# (which also covers elicitation_service for orchestration/llm),
+# `mindtrace.engines` itself is only forbidden from auth/memory/idempotency
+# here - elicitation_service legitimately depends on
+# `engines.preference.interview`/`engines.preference.update`/
+# `engines.elicitation.*` (M8's fixed-order interview math, already M4's own
+# code, never duplicated) and is deliberately excluded from source_modules.
 
 [importlinter:contract:api-is-contained]
 name = api depends on services/security/domain only: no HTTP-adjacent 3rd parties

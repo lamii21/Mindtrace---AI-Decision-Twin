@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from mindtrace import __version__
 from mindtrace.api.errors import register_exception_handlers
-from mindtrace.api.routers import auth, decisions, health, memories, simulate
+from mindtrace.api.routers import auth, decisions, elicitation, health, memories, simulate
 
 
 def create_app() -> FastAPI:
@@ -15,7 +15,9 @@ def create_app() -> FastAPI:
     M6-API wires auth/memories/decisions. M7 adds `/v1/simulate` +
     `/v1/simulations/{id}`, the one HTTP-reachable path that calls
     `orchestration.simulate()` (via `services.decision_service`) - no other
-    route in this app does, and no route calls an engine directly.
+    route in this app does, and no route calls an engine directly. M8 adds
+    `/v1/elicitation/*` (the fixed-order Twin Interview) - no Active
+    Elicitation/EIG, no `/v1/twins*` retrieval routes (deferred).
     """
     app = FastAPI(
         title="MINDTRACE API",
@@ -27,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(memories.router)
     app.include_router(decisions.router)
     app.include_router(simulate.router, prefix="/v1")
+    app.include_router(elicitation.router)
     register_exception_handlers(app)
     return app
 

@@ -18,9 +18,12 @@ from mindtrace.security.auth import InvalidCredentialsError, TokenError
 from mindtrace.services.errors import (
     EmailAlreadyRegisteredError,
     IdempotencyKeyConflictError,
+    InterviewNotCompleteError,
     InvalidChosenOptionError,
+    InvalidInterviewItemError,
     InvalidStatusTransitionError,
     ResourceNotFoundError,
+    SessionAlreadyFinalizedError,
     SimulationInProgressError,
     SituationFrozenError,
 )
@@ -133,6 +136,39 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=status.HTTP_409_CONFLICT,
             title="Conflict",
             detail="A simulation for this Idempotency-Key is already in progress. Retry shortly.",
+        )
+
+    @app.exception_handler(InvalidInterviewItemError)
+    async def _invalid_interview_item(
+        request: Request, _exc: InvalidInterviewItemError
+    ) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Validation Error",
+            detail="item_id does not name a known interview item.",
+        )
+
+    @app.exception_handler(SessionAlreadyFinalizedError)
+    async def _session_already_finalized(
+        request: Request, _exc: SessionAlreadyFinalizedError
+    ) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conflict",
+            detail="This interview session has already been finalized.",
+        )
+
+    @app.exception_handler(InterviewNotCompleteError)
+    async def _interview_not_complete(
+        request: Request, _exc: InterviewNotCompleteError
+    ) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conflict",
+            detail="This interview session has not answered every item yet.",
         )
 
     @app.exception_handler(InvalidCredentialsError)
