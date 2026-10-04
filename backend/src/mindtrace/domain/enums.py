@@ -133,6 +133,24 @@ class ChoiceOption(StrEnum):
     B = "B"
 
 
+class TwinVersionReason(StrEnum):
+    """Why a new ``TwinVersion`` was created (``docs/architecture/02-domain-model.md`` AG-6).
+
+    M8 only ever produces ``POST_ELICITATION`` - the other four values are
+    declared now (M8 planning), ahead of the milestones that produce them
+    (M10's weekly cron for ``SCHEDULED``, decision-derived evidence for
+    ``POST_DECISION``, an operator action for ``MANUAL``, a trait schema bump
+    for ``SCHEMA_MIGRATION``), the same way ``BeliefType`` was declared ahead
+    of M2's own producers.
+    """
+
+    SCHEDULED = "scheduled"
+    POST_ELICITATION = "post_elicitation"
+    POST_DECISION = "post_decision"
+    MANUAL = "manual"
+    SCHEMA_MIGRATION = "schema_migration"
+
+
 class DecisionOutcome(StrEnum):
     """The MCDA decision label. ``UNCERTAIN`` is a real outcome, not a failure."""
 

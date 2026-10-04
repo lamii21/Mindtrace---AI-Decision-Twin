@@ -2,13 +2,18 @@
 
 Mirrors ``schema/interview.yaml`` (see ``docs/spec/07-cold-start-interview.md``).
 M1 loads and validates the declarative bank only. The Bradley-Terry design
-vectors, adaptive selection, and posterior updates are milestone M8 -- this
-module deliberately does not compute them.
+vectors, fixed-order selection, and posterior updates are M8's job
+(``mindtrace.engines.elicitation``/``mindtrace.engines.preference.interview``).
+
+``InterviewSession`` (M8) is a different concept from the bank above - the
+*operational state of one in-progress interview*, not the static item
+catalogue - kept in this module rather than a separate file since, unlike
+``decision_record.py``/``decision.py``, there is no name collision to avoid.
 """
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +29,15 @@ from mindtrace.domain.enums import (
 )
 from mindtrace.domain.errors import SchemaConsistencyError, SchemaValidationError
 from mindtrace.domain.factors import FactorTaxonomy
-from mindtrace.domain.ids import DispositionId, FactorId, InterviewItemId
+from mindtrace.domain.ids import (
+    DispositionId,
+    FactorId,
+    InterviewItemId,
+    InterviewSessionId,
+    TwinId,
+    TwinVersionId,
+    UserId,
+)
 from mindtrace.domain.paths import default_schema_dir
 from mindtrace.domain.traits import TraitModel
 
@@ -379,3 +392,29 @@ def load_interview_bank(
     schema = read_json(directory / _SCHEMA_FILE)
     validate_structure(data, schema, source=_DATA_FILE)
     return parse_interview_bank(data, taxonomy=taxonomy, trait_model=trait_model)
+
+
+class InterviewSession(BaseModel):
+    """One in-flight or completed Twin Interview session (M8).
+
+    Operational state only - the answers themselves live as
+    ``elicitation_answered`` events (``Event.correlation_id == id``), never
+    duplicated here. ``twin_id``/``resulting_twin_version_id``/
+    ``interview_noise`` stay ``None`` until :func:`~mindtrace.engines.
+    elicitation.finalize.finalize_interview` succeeds.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: InterviewSessionId
+    user_id: UserId
+    twin_id: TwinId | None
+    started_at: datetime
+    completed_at: datetime | None
+    resulting_twin_version_id: TwinVersionId | None
+    interview_noise: float | None
+
+    @property
+    def is_finalized(self) -> bool:
+        """Whether :meth:`finalize` has already succeeded for this session."""
+        return self.completed_at is not None

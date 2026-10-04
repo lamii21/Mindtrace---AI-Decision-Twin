@@ -48,6 +48,7 @@ from mindtrace.domain.enums import (
     ProvenanceSource,
     ScaleLevel,
     SelfReportReliability,
+    TwinVersionReason,
     UncertainReason,
     UserStatus,
 )
@@ -76,15 +77,19 @@ from mindtrace.domain.ids import (
     EvidenceTag,
     FactorId,
     InterviewItemId,
+    InterviewSessionId,
     MemoryId,
     PredictionId,
     SimulationId,
+    TwinId,
+    TwinVersionId,
     UserId,
 )
 from mindtrace.domain.interview import (
     DispositionItem,
     InterviewBank,
     InterviewConfig,
+    InterviewSession,
     PairwiseItem,
     load_interview_bank,
     parse_interview_bank,
@@ -118,6 +123,7 @@ from mindtrace.domain.traits import (
     load_trait_model,
     parse_trait_model,
 )
+from mindtrace.domain.twin import Twin, TwinVersion
 from mindtrace.domain.user import User
 
 __all__ = [
@@ -172,6 +178,8 @@ __all__ = [
     "InterviewItemId",
     "InterviewItemRole",
     "InterviewItemType",
+    "InterviewSession",
+    "InterviewSessionId",
     "Memory",
     "MemoryId",
     "MemoryType",
@@ -200,7 +208,12 @@ __all__ = [
     "SimulationId",
     "TraitModel",
     "TraitReport",
+    "Twin",
     "TwinConfigResult",
+    "TwinId",
+    "TwinVersion",
+    "TwinVersionId",
+    "TwinVersionReason",
     "UncertainReason",
     "User",
     "UserId",
