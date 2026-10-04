@@ -140,7 +140,7 @@ def to_simulation_out(
         decision_id=simulation.decision_id,
         engine_version=simulation.simulation_version,
         factor_schema_version=simulation.extraction.metadata.factor_schema_version,
-        twin_version_id=None,
+        twin_version_id=prediction.twin_version_id,
         decision=DecisionSummaryOut(
             label=prediction.predicted_decision.value,
             uncertain_reason=(

@@ -1,19 +1,20 @@
-"""``/v1/simulate`` + ``/v1/simulations/{id}`` DTOs (``docs/api/08`` s5, M7-scoped).
+"""``/v1/simulate`` + ``/v1/simulations/{id}`` DTOs (``docs/api/08`` s5, M7/M8-scoped).
 
 ``docs/api/08``'s documented ``SimulateRequest``/``SimulationOut`` describe
 the **full post-M10** contract (``twins``, ``per_twin``, ``synthesis``,
-``debate``, ``elicitation_hint``, ``twin_version_id`` all require
-Twin/TwinVersion (M8) or parallel twins/debate (M10), both out of scope
-here). This module implements the documented subset M7 can honestly
-produce:
+``debate``, ``elicitation_hint`` all require parallel twins/debate, M10,
+still out of scope). This module implements the documented subset M7/M8 can
+honestly produce:
 
 - ``SimulateRequest`` omits ``twins``/``scenario_id`` - accepting either
-  would imply a capability (twin selection, conditional scenarios) M7 does
-  not have.
+  would imply a capability (twin selection, conditional scenarios) this
+  milestone does not have.
 - ``SimulationOut.per_twin`` always has exactly one entry, labelled
   ``"base"``.
-- ``synthesis``/``debate``/``elicitation_hint``/``twin_version_id`` are
-  always ``null`` - each requires a later milestone.
+- ``synthesis``/``debate``/``elicitation_hint`` are always ``null`` - each
+  requires M10. ``twin_version_id`` is real as of M8: the exact
+  ``TwinVersion`` the posterior came from, or ``null`` for the cold-start
+  fallback (no persisted ``Twin``/``TwinVersion`` yet for this user).
 - ``decision.label``/``uncertain_reason`` are the confidence-gated,
   product-level values (``Prediction.predicted_decision``/
   ``uncertain_reason``); ``decision.score``/``margin``/``coverage`` are M3's
@@ -164,7 +165,7 @@ class SimulationOut(BaseModel):
     decision_id: UUID
     engine_version: str
     factor_schema_version: int
-    twin_version_id: None
+    twin_version_id: UUID | None
     decision: DecisionSummaryOut
     confidence: ConfidenceOut
     contributions: list[ContributionOut]

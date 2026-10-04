@@ -2,11 +2,11 @@
 
 M7's scope is the roadmap's "base twin only" slice: exactly one
 ``TwinConfigResult`` (labelled ``"base"``), no parallel twins, no synthesis,
-no debate - those are M10. There is also no ``Twin``/``TwinVersion`` table
-yet (M8), so ``twin_version_id`` stays ``None`` throughout; the "base twin"
-here is a fresh, deterministic cold-start ``PreferencePosterior`` built
-directly from ``traits.yaml`` on every call (``engines.preference.prior.
-initial_posterior``), never a persisted, evolving twin.
+no debate - those are M10. Since M8, ``Prediction.twin_version_id`` is
+populated with the exact ``TwinVersion`` used to resolve the posterior - the
+cold-start ``initial_posterior(TRAIT_MODEL)`` fallback (``None``) is used
+only until the user has a persisted ``Twin``/``TwinVersion``
+(``services/decision_service.py``'s posterior-resolution seam).
 
 Both types are tier-B (immutable once written) and hold **only** the
 categorical/numeric sub-results M3/M4/M5/M6-A already produced - never the
@@ -30,7 +30,14 @@ from pydantic import BaseModel, ConfigDict
 from mindtrace.domain.confidence import ConfidenceResult
 from mindtrace.domain.decision import Contribution, DecisionResult, FactorVector
 from mindtrace.domain.enums import DecisionOutcome, ExtractionFailureType, UncertainReason
-from mindtrace.domain.ids import DecisionId, FactorId, PredictionId, SimulationId, UserId
+from mindtrace.domain.ids import (
+    DecisionId,
+    FactorId,
+    PredictionId,
+    SimulationId,
+    TwinVersionId,
+    UserId,
+)
 from mindtrace.domain.traits import EffectiveWeightVector
 
 _FrozenModel = ConfigDict(frozen=True, extra="forbid")
@@ -109,8 +116,12 @@ class Prediction(BaseModel):
     ``UNCERTAIN`` with that reason even when the raw MCDA label was
     ``ACCEPT``/``REJECT``. ``predicted_confidence`` is ``confidence.value``,
     persisted as its own independent field - never folded into the label
-    choice's numeric value (M7 planning s4/s13). ``twin_version_id`` is
-    always ``None`` in M7 (no ``Twin``/``TwinVersion`` exists yet - M8).
+    choice's numeric value (M7 planning s4/s13). ``twin_version_id`` is the
+    exact, immutable ``TwinVersion`` the posterior came from - ``None`` only
+    for the cold-start fallback (no ``Twin``/``TwinVersion`` exists yet for
+    this user). Set once, at creation, and never re-resolved: a later
+    interview round must never change what an existing ``Prediction`` means
+    (M8 planning s12).
     """
 
     model_config = _FrozenModel
@@ -118,7 +129,7 @@ class Prediction(BaseModel):
     id: PredictionId
     decision_id: DecisionId
     simulation_id: SimulationId
-    twin_version_id: None
+    twin_version_id: TwinVersionId | None
     predicted_decision: DecisionOutcome
     uncertain_reason: UncertainReason | None
     predicted_confidence: float

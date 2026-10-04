@@ -23,7 +23,7 @@ from mindtrace.domain.confidence import ConfidenceResult
 from mindtrace.domain.decision import Contribution
 from mindtrace.domain.enums import DecisionOutcome, UncertainReason
 from mindtrace.domain.evidence import Evidence
-from mindtrace.domain.ids import DecisionId, PredictionId, SimulationId, UserId
+from mindtrace.domain.ids import DecisionId, PredictionId, SimulationId, TwinVersionId, UserId
 from mindtrace.domain.simulation import (
     Prediction,
     Simulation,
@@ -144,7 +144,9 @@ def _model_to_prediction(row: PredictionModel) -> Prediction:
         id=PredictionId(row.id),
         decision_id=DecisionId(row.decision_id),
         simulation_id=SimulationId(row.simulation_id),
-        twin_version_id=None,
+        twin_version_id=(
+            TwinVersionId(row.twin_version_id) if row.twin_version_id is not None else None
+        ),
         predicted_decision=DecisionOutcome(row.predicted_decision),
         uncertain_reason=(
             UncertainReason(row.uncertain_reason) if row.uncertain_reason is not None else None

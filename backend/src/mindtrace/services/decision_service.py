@@ -31,6 +31,7 @@ from mindtrace.db.repositories import (
     decision_repository,
     evidence_repository,
     simulation_repository,
+    twin_repository,
 )
 from mindtrace.domain.confidence import ConfidenceResult
 from mindtrace.domain.decision import DecisionResult
@@ -46,7 +47,14 @@ from mindtrace.domain.enums import (
 )
 from mindtrace.domain.evidence import Evidence
 from mindtrace.domain.factors import FactorTaxonomy, load_factor_taxonomy
-from mindtrace.domain.ids import DecisionId, EvidenceId, PredictionId, SimulationId, UserId
+from mindtrace.domain.ids import (
+    DecisionId,
+    EvidenceId,
+    PredictionId,
+    SimulationId,
+    TwinVersionId,
+    UserId,
+)
 from mindtrace.domain.simulation import (
     ExtractionProvenance,
     Prediction,
@@ -54,7 +62,7 @@ from mindtrace.domain.simulation import (
     SimulationExtraction,
     TwinConfigResult,
 )
-from mindtrace.domain.traits import TraitModel, load_trait_model
+from mindtrace.domain.traits import PreferencePosterior, TraitModel, load_trait_model
 from mindtrace.engines.confidence.compute import confidence_uncertain_reason
 from mindtrace.engines.confidence.config import ConfidenceConfig
 from mindtrace.engines.preference.prior import initial_posterior
@@ -291,15 +299,17 @@ def run_simulation(
     now: datetime,
     simulation_id: SimulationId | None = None,
 ) -> tuple[Simulation, Prediction]:
-    """Run and persist one simulation against an already-validated ``decision`` (M7).
+    """Run and persist one simulation against an already-validated ``decision`` (M7/M8).
 
     Calls ``orchestration.simulate()`` exactly once - the canonical M5 ->
-    M6-A -> M3 -> M4 composition, computed nowhere else. The "base twin"
-    posterior is a fresh cold-start prior (``engines.preference.prior.
-    initial_posterior``) built from ``traits.yaml`` on every call: no
-    ``Twin``/``TwinVersion`` persistence exists yet (M8), so there is
-    nothing to load instead - see ``domain/simulation.py``'s module
-    docstring.
+    M6-A -> M3 -> M4 composition, computed nowhere else; this module never
+    duplicates that math. The posterior is resolved by
+    :func:`_resolve_posterior`: the user's latest persisted ``TwinVersion``
+    if one exists, else the exact M7 cold-start fallback
+    (``initial_posterior(TRAIT_MODEL)``, ``twin_version_id=None``) -
+    unchanged behaviour for any user who has not finalized an interview yet
+    (M8 planning s9). This function never creates a ``Twin`` merely because
+    it ran.
 
     ``simulation_id`` lets a caller pre-allocate the id before this runs
     (the reserve-before-compute idempotency design in
@@ -307,7 +317,7 @@ def run_simulation(
     """
     user_id = decision.user_id
     decision_id = decision.id
-    posterior = initial_posterior(_TRAIT_MODEL)
+    posterior, twin_version_id = _resolve_posterior(user_id)
     config = orchestration.SimulationConfig(extraction_config=_DEFAULT_EXTRACTION_CONFIG)
     result = orchestration.simulate(
         decision.context, _TAXONOMY, _TRAIT_MODEL, posterior, llm_client, config=config
@@ -344,7 +354,7 @@ def run_simulation(
         id=prediction_id,
         decision_id=decision_id,
         simulation_id=sim_id,
-        twin_version_id=None,
+        twin_version_id=twin_version_id,
         predicted_decision=predicted_decision,
         uncertain_reason=uncertain_reason,
         predicted_confidence=result.confidence.value,
@@ -372,6 +382,23 @@ def run_simulation(
         simulation=simulation, prediction=prediction, evidence=evidence, user_id=user_id
     )
     return simulation, prediction
+
+
+def _resolve_posterior(user_id: UserId) -> tuple[PreferencePosterior, TwinVersionId | None]:
+    """The posterior ``/simulate`` uses (M8 planning s9/s11).
+
+    The user's latest persisted ``TwinVersion`` if one exists, else the
+    exact M7 cold-start fallback. A read-only lookup - never creates a
+    ``Twin``/``TwinVersion``. "Latest"
+    is resolved only here, for a *live* simulation; an existing
+    ``Prediction`` keeps whatever ``twin_version_id`` it was created with,
+    forever (``db.repositories.twin_repository.get_twin_version`` resolves
+    that specific, immutable version, never "latest").
+    """
+    twin_version = twin_repository.get_latest_twin_version(user_id)
+    if twin_version is None:
+        return initial_posterior(_TRAIT_MODEL), None
+    return twin_version.trait_snapshot, twin_version.id
 
 
 def _compose_final_label(
