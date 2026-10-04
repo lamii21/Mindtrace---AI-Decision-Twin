@@ -10,9 +10,15 @@ from pydantic import ValidationError
 
 from mindtrace.domain.enums import MemoryType, ProvenanceSource
 from mindtrace.domain.errors import DomainError
-from mindtrace.domain.ids import EventId, MemoryId, UserId
+from mindtrace.domain.ids import EventId, InterviewItemId, MemoryId, UserId
 from mindtrace.events.enums import MemoryEventType
-from mindtrace.events.types import CorrectedPayload, DeletedPayload, Event, IngestedPayload
+from mindtrace.events.types import (
+    CorrectedPayload,
+    DeletedPayload,
+    ElicitationAnsweredPayload,
+    Event,
+    IngestedPayload,
+)
 
 
 def _make_event(**overrides: object) -> Event:
@@ -73,6 +79,33 @@ class TestPayloads:
             IngestedPayload(content="x", memory_type=MemoryType.EPISODIC, extra_field=1)  # type: ignore[call-arg]
 
 
+class TestElicitationAnsweredPayload:
+    def test_event_type_classvar(self) -> None:
+        assert ElicitationAnsweredPayload.event_type is MemoryEventType.ELICITATION_ANSWERED
+
+    def test_accepts_a_b_and_indifferent_choices(self) -> None:
+        for choice in ("A", "B", "indifferent"):
+            payload = ElicitationAnsweredPayload(item_id=InterviewItemId("p01"), choice=choice)
+            assert payload.choice == choice
+
+    def test_rejects_an_invalid_choice(self) -> None:
+        with pytest.raises(ValidationError):
+            ElicitationAnsweredPayload(item_id=InterviewItemId("p01"), choice="C")  # type: ignore[arg-type]
+
+    def test_latency_ms_is_optional(self) -> None:
+        payload = ElicitationAnsweredPayload(item_id=InterviewItemId("p01"), choice="A")
+        assert payload.latency_ms is None
+
+    def test_is_frozen(self) -> None:
+        payload = ElicitationAnsweredPayload(item_id=InterviewItemId("p01"), choice="A")
+        with pytest.raises(ValidationError):
+            payload.choice = "B"
+
+    def test_rejects_unknown_fields(self) -> None:
+        with pytest.raises(ValidationError):
+            ElicitationAnsweredPayload(item_id=InterviewItemId("p01"), choice="A", bogus=1)  # type: ignore[call-arg]
+
+
 class TestEvent:
     def test_is_frozen(self) -> None:
         event = _make_event()
@@ -111,6 +144,11 @@ class TestEvent:
                 {"target_memory_ids": [str(uuid4())]},
                 DeletedPayload,
             ),
+            (
+                MemoryEventType.ELICITATION_ANSWERED,
+                {"item_id": "p01", "choice": "A"},
+                ElicitationAnsweredPayload,
+            ),
         ],
     )
     def test_typed_payload_parses_the_matching_model(
@@ -119,10 +157,11 @@ class TestEvent:
         event = _make_event(type=event_type, payload=payload)
         assert isinstance(event.typed_payload(), expected_model)
 
-    @pytest.mark.parametrize(
-        "event_type", [MemoryEventType.ELICITATION_ANSWERED, MemoryEventType.OUTCOME_RECORDED]
-    )
+    @pytest.mark.parametrize("event_type", [MemoryEventType.OUTCOME_RECORDED])
     def test_typed_payload_raises_for_unmodelled_types(self, event_type: MemoryEventType) -> None:
+        """``elicitation_answered`` now has a typed payload - see
+        ``TestElicitationAnsweredPayload``.
+        """
         event = _make_event(type=event_type, payload={})
         with pytest.raises(DomainError, match="no typed payload model"):
             event.typed_payload()
