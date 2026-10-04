@@ -23,6 +23,7 @@ from mindtrace.events.store import EventStore
 from mindtrace.events.types import (
     CorrectedPayload,
     DeletedPayload,
+    ElicitationAnsweredPayload,
     Event,
     EventPayload,
     IngestedPayload,
@@ -33,6 +34,7 @@ __all__ = [
     "CorrectedPayload",
     "DeletedPayload",
     "DeletionImpact",
+    "ElicitationAnsweredPayload",
     "Event",
     "EventPayload",
     "EventStore",
