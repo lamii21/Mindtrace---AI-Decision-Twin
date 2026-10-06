@@ -33,6 +33,8 @@ _EXPECTED_PATHS = {
     "/v1/elicitation/sessions/{session_id}",
     "/v1/elicitation/sessions/{session_id}/answers",
     "/v1/elicitation/sessions/{session_id}:finalize",
+    "/v1/evidence/{belief_type}/{belief_id}",
+    "/v1/beliefs/{belief_type}/{belief_id}:dispute",
 }
 
 
@@ -60,33 +62,37 @@ class TestExpectedRoutesExist:
         assert set(paths["/v1/elicitation/sessions/{session_id}/answers"].keys()) == {"post"}
         assert set(paths["/v1/elicitation/sessions/{session_id}:finalize"].keys()) == {"post"}
 
+    def test_evidence_and_dispute_routes_have_the_expected_methods(self) -> None:
+        """Evidence is read-only; dispute is the only write - no ``PUT``/``PATCH``/``DELETE``."""
+        spec = _spec()
+        paths: dict[str, dict[str, object]] = spec["paths"]  # type: ignore[assignment]
+        assert set(paths["/v1/evidence/{belief_type}/{belief_id}"].keys()) == {"get"}
+        assert set(paths["/v1/beliefs/{belief_type}/{belief_id}:dispute"].keys()) == {"post"}
+
 
 class TestNoFutureScopeRoutes:
-    def test_no_m9_plus_routes_exist(self) -> None:
-        """Twin read endpoints (``GET /v1/twins*``, deferred per M8 planning s2), Active
-        Elicitation/EIG-specific routes, evaluation, contradictions - all post-M8.
+    def test_no_m10_plus_routes_exist(self) -> None:
+        """Twin read endpoints (``GET /v1/twins*``, still deferred), outcome recording
+        (``POST /v1/predictions/{id}/outcome``), evaluation, and the full Contradiction
+        Engine (AG-10's system-detected-conflict review flow, distinct from M9's direct
+        user ``:dispute``) are all out of this milestone's documented scope.
 
-        ``evidence``/``predictions`` are M7 domain *concepts* (persisted,
-        used internally by ``/v1/simulate``) but never their own URL path -
-        ``GET /v1/evidence/{type}/{id}``/``POST /v1/predictions/{id}/outcome``
-        are M9's routes, still absent here. ``elicitation`` is deliberately
-        NOT in this list - M8 ships `/v1/elicitation/*` (the fixed-order Twin
-        Interview) by design; see ``_EXPECTED_PATHS`` instead.
+        ``elicitation``/``evidence``/``beliefs`` are deliberately NOT in this
+        list - M8/M9 ship those routes by design; see ``_EXPECTED_PATHS``.
         """
         spec = _spec()
         paths = spec["paths"].keys()  # type: ignore[attr-defined]
         forbidden_fragments = (
             "twin",
-            "evidence",
             "evaluation",
             "contradiction",
             "predictions",
         )
         for path in paths:
-            if path.startswith("/v1/elicitation"):
+            if path.startswith(("/v1/elicitation", "/v1/evidence", "/v1/beliefs")):
                 continue
             for fragment in forbidden_fragments:
-                assert fragment not in path.lower(), f"unexpected M9+ route: {path}"
+                assert fragment not in path.lower(), f"unexpected M10+ route: {path}"
 
     def test_client_can_be_built_with_no_database_configured(self) -> None:
         """OpenAPI/route registration never touches the database (M6-API planning s11)."""

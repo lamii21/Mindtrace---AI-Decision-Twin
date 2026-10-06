@@ -23,11 +23,10 @@ def test_health_response_is_deterministic_across_calls() -> None:
 
 
 def test_app_exposes_exactly_the_current_business_routes() -> None:
-    """As of M8, auth/memories/decisions/simulate/elicitation routers are wired in.
+    """As of M9, auth/memories/decisions/simulate/elicitation/evidence routers are wired in.
 
-    Still guards against accidentally adding anything from M9+ (twin read
-    endpoints, Active Elicitation/EIG-specific routes, evaluation,
-    contradictions).
+    Still guards against accidentally adding anything from M10+ (twin read
+    endpoints, outcome recording, evaluation, the full Contradiction Engine).
 
     Reads the OpenAPI spec rather than walking ``app.routes`` directly:
     FastAPI's router composition wraps included routers in an internal
@@ -54,4 +53,6 @@ def test_app_exposes_exactly_the_current_business_routes() -> None:
         "/v1/elicitation/sessions/{session_id}",
         "/v1/elicitation/sessions/{session_id}/answers",
         "/v1/elicitation/sessions/{session_id}:finalize",
+        "/v1/evidence/{belief_type}/{belief_id}",
+        "/v1/beliefs/{belief_type}/{belief_id}:dispute",
     }

@@ -38,6 +38,7 @@ _TABLES_AT_0001 = {
 _TABLES_AT_0002 = _TABLES_AT_0001 | {"refresh_token", "idempotency_key"}
 _TABLES_AT_0003 = _TABLES_AT_0002 | {"simulation", "prediction", "evidence"}
 _TABLES_AT_0004 = _TABLES_AT_0003 | {"twin", "twin_version", "interview_session"}
+_TABLES_AT_0005 = _TABLES_AT_0004 | {"audit_log"}
 
 # Used only by the two tests that genuinely reach (and stay at) head -
 # `test_0NNN_data_survives_...` tests each reach a specific, earlier
@@ -45,7 +46,7 @@ _TABLES_AT_0004 = _TABLES_AT_0003 | {"twin", "twin_version", "interview_session"
 # latent fragility where the module-scoped, test-order-dependent shared
 # container happened to already sit at head by the time an intermediate
 # test's assertion ran).
-_EXPECTED_TABLES = _TABLES_AT_0004
+_EXPECTED_TABLES = _TABLES_AT_0005
 
 
 @pytest.fixture(scope="module")
@@ -106,6 +107,17 @@ def _insert_decision_and_simulation(
                 "'{}'::jsonb, '[]'::jsonb, '{}'::jsonb, now())"
             ),
             {"id": simulation_id, "user_id": user_id, "decision_id": decision_id},
+        )
+
+
+def _insert_twin(engine: Engine, *, user_id: uuid.UUID, twin_id: uuid.UUID) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO twin (id, user_id, name, next_twin_version, created_at) "
+                "VALUES (:id, :user_id, 'Primary', 1, now())"
+            ),
+            {"id": twin_id, "user_id": user_id},
         )
 
 
@@ -323,7 +335,7 @@ def test_0003_data_survives_upgrade_to_0004_and_downgrade_back_to_0003(
                 ).scalar_one()
         finally:
             engine.dispose()
-        assert tables == _EXPECTED_TABLES
+        assert tables == _TABLES_AT_0004
         assert survived == f"{user_id}@example.dev"
         assert simulation_survived == simulation_id
 
@@ -343,6 +355,68 @@ def test_0003_data_survives_upgrade_to_0004_and_downgrade_back_to_0003(
         assert still_there == f"{user_id}@example.dev"
 
         command.upgrade(config, "0004")
+    finally:
+        os.environ.pop("MINDTRACE_DATABASE_URL", None)
+        get_settings.cache_clear()
+        db_session.reset_engine_for_tests()
+
+
+def test_0004_data_survives_upgrade_to_0005_and_downgrade_back_to_0004(
+    fresh_owner_url: str,
+) -> None:
+    """current 0004 -> upgrade 0005 -> verify -> downgrade 0004 -> upgrade 0005.
+
+    Existing 0004-era data (a user + a twin row) must survive the whole
+    round trip - 0005 only adds ``audit_log``, it never touches 0001-0004's
+    tables (M9 planning).
+    """
+    config = _alembic_config()
+    os.environ["MINDTRACE_DATABASE_URL"] = fresh_owner_url
+    get_settings.cache_clear()
+    try:
+        command.downgrade(config, "base")
+        command.upgrade(config, "0004")
+
+        engine = create_engine(fresh_owner_url)
+        user_id = uuid.uuid4()
+        twin_id = uuid.uuid4()
+        try:
+            _insert_user(engine, user_id)
+            _insert_twin(engine, user_id=user_id, twin_id=twin_id)
+        finally:
+            engine.dispose()
+
+        command.upgrade(config, "0005")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                survived: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+                twin_survived: uuid.UUID = conn.execute(
+                    text("SELECT id FROM twin WHERE id = :id"), {"id": twin_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert tables == _TABLES_AT_0005
+        assert survived == f"{user_id}@example.dev"
+        assert twin_survived == twin_id
+
+        command.downgrade(config, "0004")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables_after_downgrade = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                still_there: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert "audit_log" not in tables_after_downgrade
+        assert still_there == f"{user_id}@example.dev"
+
+        command.upgrade(config, "0005")
     finally:
         os.environ.pop("MINDTRACE_DATABASE_URL", None)
         get_settings.cache_clear()
