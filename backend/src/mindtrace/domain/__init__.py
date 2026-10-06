@@ -9,6 +9,7 @@ an LLM provider SDK, or any higher ``mindtrace`` layer -- enforced by
 
 from __future__ import annotations
 
+from mindtrace.domain.audit import AuditLog
 from mindtrace.domain.confidence import (
     CalibrationLedger,
     CalibrationRecord,
@@ -69,6 +70,7 @@ from mindtrace.domain.factors import (
     parse_factor_taxonomy,
 )
 from mindtrace.domain.ids import (
+    AuditLogId,
     ConsentRecordId,
     DecisionId,
     DispositionId,
@@ -127,6 +129,8 @@ from mindtrace.domain.twin import Twin, TwinVersion
 from mindtrace.domain.user import User
 
 __all__ = [
+    "AuditLog",
+    "AuditLogId",
     "BeliefType",
     "BetaPrior",
     "CalibrationLedger",

@@ -7,6 +7,7 @@ is never imported never registers itself.
 
 from __future__ import annotations
 
+from mindtrace.db.models.audit_log import AuditLogModel
 from mindtrace.db.models.consent_record import ConsentRecordModel
 from mindtrace.db.models.decision import DecisionModel
 from mindtrace.db.models.evidence import EvidenceModel
@@ -23,6 +24,7 @@ from mindtrace.db.models.user import UserModel
 from mindtrace.db.models.user_data_key import UserDataKeyModel
 
 __all__ = [
+    "AuditLogModel",
     "ConsentRecordModel",
     "DecisionModel",
     "EvidenceModel",
