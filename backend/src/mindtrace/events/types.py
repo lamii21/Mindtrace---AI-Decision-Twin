@@ -76,6 +76,16 @@ class ElicitationAnsweredPayload(BaseModel):
     ``item_id`` again within a session never edits this event - it appends a
     new one; finalisation (``engines/elicitation/finalize.py``) uses the
     latest answer per item.
+
+    ``dispute_reason`` (M9) is set only when this answer was produced by
+    ``POST /v1/beliefs/{type}/{id}:dispute`` rather than a normal interview
+    session - the one piece of free text a dispute carries, kept inside this
+    already-encrypted payload (ADR-009) rather than in a new plaintext column
+    or inside ``AuditLog`` (which only ever stores a ``payload_hash``, never
+    prose - ``docs/architecture/02-domain-model.md`` cross-cutting section).
+    A dispute event's ``correlation_id`` is ``None`` - it belongs to no
+    ``InterviewSession``, so it is never picked up by
+    ``fold_elicitation_answer_events``'s session-scoped fold.
     """
 
     model_config = _FrozenModel
@@ -85,6 +95,7 @@ class ElicitationAnsweredPayload(BaseModel):
     item_id: InterviewItemId
     choice: Literal["A", "B", "indifferent"]
     latency_ms: int | None = None
+    dispute_reason: str | None = None
 
 
 EventPayload = IngestedPayload | CorrectedPayload | DeletedPayload | ElicitationAnsweredPayload

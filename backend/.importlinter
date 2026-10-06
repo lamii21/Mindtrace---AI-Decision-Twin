@@ -276,6 +276,38 @@ forbidden_modules =
     mindtrace.observability
     mindtrace.workers
 
+[importlinter:contract:observability-is-contained]
+name = observability depends on domain only: never db/api/frameworks
+type = forbidden
+source_modules =
+    mindtrace.observability
+forbidden_modules =
+    fastapi
+    starlette
+    sqlalchemy
+    alembic
+    redis
+    arq
+    anthropic
+    openai
+    langchain
+    httpx
+    httpx2
+    mindtrace.api
+    mindtrace.config
+    mindtrace.services
+    mindtrace.engines
+    mindtrace.events
+    mindtrace.llm
+    mindtrace.orchestration
+    mindtrace.db
+    mindtrace.security
+    mindtrace.workers
+# M9 note: mindtrace.observability now exists (``AuditLog`` construction).
+# Mirrors security-is-contained exactly: pure, domain-only, never imports
+# db/ itself - services/ wires its output into a db/ repository, the same
+# composition-root pattern ADR-009 already established for security/db.
+
 [importlinter:contract:services-is-contained]
 name = services depends on domain/db/security/events/orchestration only: no HTTP
 type = forbidden
@@ -293,14 +325,18 @@ forbidden_modules =
     httpx2
     mindtrace.api
     mindtrace.config
-    mindtrace.observability
     mindtrace.workers
-# sqlalchemy/alembic/mindtrace.orchestration/mindtrace.engines/mindtrace.llm
-# deliberately NOT listed: import-linter's `forbidden` contract checks the
-# full transitive graph, and services legitimately depends on
-# db.repositories (-> sqlalchemy) and, since M7, on orchestration.simulate()
-# (-> engines, llm) - forbidding any of them here would make those
-# legitimate edges impossible to express. "services never writes raw SQL
+# sqlalchemy/alembic/mindtrace.orchestration/mindtrace.engines/mindtrace.llm/
+# mindtrace.observability deliberately NOT listed: import-linter's
+# `forbidden` contract checks the full transitive graph, and services
+# legitimately depends on db.repositories (-> sqlalchemy) and, since M7, on
+# orchestration.simulate() (-> engines, llm) - forbidding any of them here
+# would make those legitimate edges impossible to express. M9 adds a
+# genuine *direct* dependency too: services/evidence_service.py and
+# services/memory_service.py both build an `AuditLog` via
+# `observability.audit.build_audit_log` before persisting it through a db/
+# repository - the same composition-root pattern already established for
+# security/db (ADR-009). "services never writes raw SQL
 # itself" / "no engine math outside orchestration" are real rules, but they
 # are code-review conventions (db/repositories/ is the only place
 # SQLAlchemy constructs are written; orchestration.simulate() is the only
@@ -318,6 +354,7 @@ source_modules =
     mindtrace.services.memory_service
     mindtrace.services.idempotency_service
     mindtrace.services.elicitation_service
+    mindtrace.services.evidence_service
 forbidden_modules =
     mindtrace.orchestration
     mindtrace.llm
@@ -406,7 +443,7 @@ type = layers
 layers =
     mindtrace.api
     mindtrace.orchestration
-    mindtrace.engines | mindtrace.events | mindtrace.llm
+    mindtrace.engines | mindtrace.events | mindtrace.llm | mindtrace.observability
     mindtrace.domain
 # mindtrace.db and mindtrace.security are deliberately NOT modelled in this
 # strict total-order layers contract: db's one real cross-edge (db -> events,
