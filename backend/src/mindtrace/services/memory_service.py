@@ -21,24 +21,49 @@ that do not exist yet ("M5+", never actually built). Faking a substring
 match would misrepresent what "topic" matching is meant to do. Explicit-id
 deletion (``DELETE /v1/memories/{id}``) is fully implemented - it is exactly
 what M2 already proved out.
+
+**M9** wires the *real* ``PostgresEvidenceStore`` into deletion preview/apply
+in place of the throwaway ``InMemoryEvidenceStore`` M6 used (nothing yet
+existed to write real evidence against a memory at the time) - and derives
+``DeletionPlanFacts``/``invalidated_predictions`` from what that store
+actually reports, rather than the router hard-coding empty values (M9
+planning: a real, previously-silent gap - no current producer writes
+``Evidence(source_kind=memory)`` either, so a real plan's impact is
+honestly empty until one does; the wiring itself is what M9 proves works).
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
 from mindtrace.db.crypto import KeyProvider
 from mindtrace.db.event_store import PostgresEventStore
-from mindtrace.db.repositories import memory_repository
-from mindtrace.domain.enums import MemoryType, ProvenanceSource
-from mindtrace.domain.ids import MemoryId, UserId
+from mindtrace.db.repositories import audit_repository, memory_repository
+from mindtrace.db.repositories.evidence_repository import PostgresEvidenceStore
+from mindtrace.db.repositories.simulation_repository import get_simulation
+from mindtrace.db.session import user_scoped_session
+from mindtrace.domain.enums import BeliefType, MemoryType, ProvenanceSource
+from mindtrace.domain.errors import DomainError
+from mindtrace.domain.ids import MemoryId, SimulationId, UserId
 from mindtrace.domain.memory import Memory
-from mindtrace.events.evidence_store import InMemoryEvidenceStore
+from mindtrace.events.deletion_plan import DeletionPlanFacts, build_deletion_plan_facts
 from mindtrace.events.projectors.memory import MemoryProjectionState, fold_memory_events
 from mindtrace.events.rederive import DeletionImpact, apply_deletion, preview_deletion
 from mindtrace.events.types import IngestedPayload
-from mindtrace.services.errors import ResourceNotFoundError
+from mindtrace.observability.audit import build_audit_log
+from mindtrace.services.errors import MemoryAlreadyDeletedError, ResourceNotFoundError
+
+
+@dataclass(frozen=True)
+class DeletionPlanResult:
+    """Everything ``DELETE /v1/memories/{id}``'s ``DeletionPlan`` response needs (M9)."""
+
+    impact: DeletionImpact
+    facts: DeletionPlanFacts
+    invalidated_predictions: int
+
 
 # API `kind` (input classification) -> projected `MemoryType` (AG-3's own
 # vocabulary). Not documented as an explicit table anywhere - a direct,
@@ -113,7 +138,7 @@ def list_memories(
 
 def preview_delete(
     *, user_id: UserId, memory_ids: tuple[MemoryId, ...], key_provider: KeyProvider
-) -> DeletionImpact:
+) -> DeletionPlanResult:
     """Dry-run: compute what deleting ``memory_ids`` would affect, changing nothing.
 
     Raises:
@@ -122,45 +147,93 @@ def preview_delete(
             (M2, unmodified) raises ``KeyError`` for that case; RLS already
             makes "doesn't exist" and "not yours" indistinguishable by
             scoping ``state`` to ``user_id``, so both collapse to 404 here.
+        MemoryAlreadyDeletedError: a named memory is already tombstoned.
     """
     state = _current_state(user_id=user_id, key_provider=key_provider)
-    try:
-        return preview_deletion(state, memory_ids, evidence_store=InMemoryEvidenceStore())
-    except KeyError as exc:
-        msg = f"memory {exc.args[0]} not found"
-        raise ResourceNotFoundError(msg) from exc
+    with user_scoped_session(user_id) as session:
+        evidence_store = PostgresEvidenceStore(session, user_id=user_id)
+        try:
+            impact = preview_deletion(state, memory_ids, evidence_store=evidence_store)
+        except KeyError as exc:
+            msg = f"memory {exc.args[0]} not found"
+            raise ResourceNotFoundError(msg) from exc
+        except DomainError as exc:
+            raise MemoryAlreadyDeletedError(str(exc)) from exc
+    return _build_plan_result(impact, user_id=user_id)
 
 
 def apply_delete(
     *, user_id: UserId, memory_ids: tuple[MemoryId, ...], key_provider: KeyProvider, now: datetime
-) -> tuple[DeletionImpact, UUID]:
+) -> tuple[DeletionPlanResult, UUID]:
     """Apply the deletion: append a ``deleted`` event, re-derive, persist.
 
-    Returns ``(impact, job_id)`` - ``job_id`` is a fresh id matching the
+    Returns ``(plan, job_id)`` - ``job_id`` is a fresh id matching the
     documented ``202 {job_id}`` response shape; the work itself already
     completed synchronously by the time this returns (see module docstring).
 
     Raises:
         ResourceNotFoundError: see :func:`preview_delete` - same translation
             of the underlying ``KeyError`` applies here.
+        MemoryAlreadyDeletedError: see :func:`preview_delete`.
     """
     store = PostgresEventStore(key_provider=key_provider)
     state = _current_state(user_id=user_id, key_provider=key_provider)
-    try:
-        impact, new_state = apply_deletion(
-            store,
-            state,
-            memory_ids,
-            evidence_store=InMemoryEvidenceStore(),
-            source=ProvenanceSource.DECLARED,
-            now=now,
-        )
-    except KeyError as exc:
-        msg = f"memory {exc.args[0]} not found"
-        raise ResourceNotFoundError(msg) from exc
+    with user_scoped_session(user_id) as session:
+        evidence_store = PostgresEvidenceStore(session, user_id=user_id)
+        try:
+            impact, new_state = apply_deletion(
+                store,
+                state,
+                memory_ids,
+                evidence_store=evidence_store,
+                source=ProvenanceSource.DECLARED,
+                now=now,
+            )
+        except KeyError as exc:
+            msg = f"memory {exc.args[0]} not found"
+            raise ResourceNotFoundError(msg) from exc
+        except DomainError as exc:
+            raise MemoryAlreadyDeletedError(str(exc)) from exc
     for memory in new_state.memories.values():
         memory_repository.upsert_memory(memory=memory, key_provider=key_provider)
-    return impact, uuid4()
+    plan = _build_plan_result(impact, user_id=user_id)
+    _record_deletion_audit(user_id=user_id, plan=plan, now=now)
+    return plan, uuid4()
+
+
+def _record_deletion_audit(*, user_id: UserId, plan: DeletionPlanResult, now: datetime) -> None:
+    """One ``AuditLog`` row per applied deletion - never the memory content itself."""
+    with user_scoped_session(user_id) as session:
+        for memory_id in plan.impact.memory_ids:
+            audit_repository.append_audit(
+                session,
+                log=build_audit_log(
+                    user_id=user_id,
+                    actor=f"user:{user_id}",
+                    action="memory.deleted",
+                    target_type="memory",
+                    target_id=UUID(str(memory_id)),
+                    engine_version=None,
+                    payload={
+                        "affected_belief_count": len(plan.facts.affected_beliefs),
+                        "twin_version_will_bump": plan.facts.twin_version_will_bump,
+                    },
+                    at=now,
+                ),
+            )
+
+
+def _build_plan_result(impact: DeletionImpact, *, user_id: UserId) -> DeletionPlanResult:
+    facts = build_deletion_plan_facts(impact)
+    invalidated_predictions = sum(
+        1
+        for fact in facts.affected_beliefs
+        if fact.belief_type is BeliefType.DECISION_FACTOR
+        and get_simulation(user_id, SimulationId(fact.belief_id)) is not None
+    )
+    return DeletionPlanResult(
+        impact=impact, facts=facts, invalidated_predictions=invalidated_predictions
+    )
 
 
 def _current_state(*, user_id: UserId, key_provider: KeyProvider) -> MemoryProjectionState:

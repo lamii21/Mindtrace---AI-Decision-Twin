@@ -69,3 +69,27 @@ class SessionAlreadyFinalizedError(ServiceError):
 
 class InterviewNotCompleteError(ServiceError):
     """``:finalize`` was called before every fixed-order item has an answer."""
+
+
+class MemoryAlreadyDeletedError(ServiceError):
+    """A deletion (preview or apply) named a memory that is already tombstoned."""
+
+
+class UnsupportedBeliefTypeError(ServiceError):
+    """``POST /v1/beliefs/{type}/{id}:dispute`` named a ``belief_type`` M9 cannot recompute.
+
+    Only ``preference``/``trait`` are recomputable via the existing M4
+    preference engine (M9 planning - approved scope). ``decision_factor``/
+    ``value``/``contradiction`` recompute through different, not-yet-wired
+    paths and are deliberately refused rather than silently accepted.
+    """
+
+
+class StaleBeliefError(ServiceError):
+    """A dispute named a ``belief_id`` that is not the caller's current ``TwinVersion``.
+
+    Disputing a *historical* ``TwinVersion`` is refused outright -
+    ``TwinVersion`` is immutable and a dispute can only ever produce a *new*
+    one built on top of the current posterior, never retroactively revise an
+    old snapshot (M8's own historical-reproducibility invariant, unchanged).
+    """

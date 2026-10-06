@@ -22,10 +22,13 @@ from mindtrace.services.errors import (
     InvalidChosenOptionError,
     InvalidInterviewItemError,
     InvalidStatusTransitionError,
+    MemoryAlreadyDeletedError,
     ResourceNotFoundError,
     SessionAlreadyFinalizedError,
     SimulationInProgressError,
     SituationFrozenError,
+    StaleBeliefError,
+    UnsupportedBeliefTypeError,
 )
 
 _PROBLEM_MEDIA_TYPE = "application/problem+json"
@@ -169,6 +172,37 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=status.HTTP_409_CONFLICT,
             title="Conflict",
             detail="This interview session has not answered every item yet.",
+        )
+
+    @app.exception_handler(MemoryAlreadyDeletedError)
+    async def _memory_already_deleted(
+        request: Request, _exc: MemoryAlreadyDeletedError
+    ) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conflict",
+            detail="This memory has already been deleted.",
+        )
+
+    @app.exception_handler(UnsupportedBeliefTypeError)
+    async def _unsupported_belief_type(
+        request: Request, _exc: UnsupportedBeliefTypeError
+    ) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Validation Error",
+            detail="This belief_type cannot be disputed yet.",
+        )
+
+    @app.exception_handler(StaleBeliefError)
+    async def _stale_belief(request: Request, _exc: StaleBeliefError) -> JSONResponse:
+        return _problem(
+            request,
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conflict",
+            detail="This belief_id is not the current version - re-fetch and retry.",
         )
 
     @app.exception_handler(InvalidCredentialsError)

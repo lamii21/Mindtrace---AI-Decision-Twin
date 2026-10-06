@@ -19,6 +19,7 @@ from mindtrace.api.idempotency import fingerprint
 from mindtrace.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, paginate
 from mindtrace.api.schemas.common import Page
 from mindtrace.api.schemas.memory import (
+    BeliefImpact,
     DeletionPlan,
     JobAccepted,
     MemoryAccepted,
@@ -33,6 +34,7 @@ from mindtrace.domain.ids import MemoryId, UserId
 from mindtrace.domain.memory import Memory
 from mindtrace.services import idempotency_service, memory_service
 from mindtrace.services.errors import IdempotencyKeyConflictError
+from mindtrace.services.memory_service import DeletionPlanResult
 
 router = APIRouter(prefix="/v1/memories", tags=["memories"])
 
@@ -201,18 +203,12 @@ def delete_memory(
 ) -> DeletionPlan | JobAccepted:
     """Preview (``dry_run=true``) or apply deletion of one of the caller's own memories."""
     if dry_run:
-        impact = memory_service.preview_delete(
+        plan = memory_service.preview_delete(
             user_id=user_id, memory_ids=(MemoryId(memory_id),), key_provider=key_provider
         )
         response.status_code = status.HTTP_200_OK
-        return DeletionPlan(
-            target_memory_ids=list(impact.memory_ids),
-            affected_beliefs=[],
-            affected_traits=[],
-            invalidated_predictions=0,
-            twin_version_will_bump=False,
-        )
-    _impact, job_id = memory_service.apply_delete(
+        return _to_deletion_plan(plan)
+    _plan, job_id = memory_service.apply_delete(
         user_id=user_id,
         memory_ids=(MemoryId(memory_id),),
         key_provider=key_provider,
@@ -220,3 +216,23 @@ def delete_memory(
     )
     response.status_code = status.HTTP_202_ACCEPTED
     return JobAccepted(job_id=job_id)
+
+
+def _to_deletion_plan(plan: DeletionPlanResult) -> DeletionPlan:
+    return DeletionPlan(
+        target_memory_ids=list(plan.impact.memory_ids),
+        affected_beliefs=[
+            BeliefImpact(
+                belief_type=fact.belief_type.value,
+                belief_id=fact.belief_id,
+                label=f"{fact.belief_type.value}:{fact.belief_id}",
+                change="recompute",
+                before=None,
+                after_estimate=None,
+            )
+            for fact in plan.facts.affected_beliefs
+        ],
+        affected_traits=[],
+        invalidated_predictions=plan.invalidated_predictions,
+        twin_version_will_bump=plan.facts.twin_version_will_bump,
+    )
