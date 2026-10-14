@@ -160,11 +160,22 @@ class DecisionOutcome(StrEnum):
 
 
 class UncertainReason(StrEnum):
-    """Why a decision resolved to ``UNCERTAIN`` (priority order; ``docs/spec/05`` §5)."""
+    """Why a decision resolved to ``UNCERTAIN`` (priority order; ``docs/spec/05`` §5).
+
+    ``ENSEMBLE_DISAGREEMENT`` (M10, ADR-007) is checked after the base twin's
+    own ``SCORE_IN_BAND``/``INSUFFICIENT_COVERAGE`` gates but before
+    ``LOW_MODEL_CONFIDENCE`` - it fires only when the base twin itself would
+    have said ``ACCEPT``/``REJECT`` but the weight-of-evidence vote across
+    all twins lands on ``UNCERTAIN`` instead (the parallel twins genuinely
+    disagree enough to flip the recommendation - never a fabricated gate,
+    the vote's own honest output; ``services.decision_service.
+    _compose_final_label`` is the one place that orders these three checks).
+    """
 
     SCORE_IN_BAND = "score_in_band"
     INSUFFICIENT_COVERAGE = "insufficient_coverage"
     LOW_MODEL_CONFIDENCE = "low_model_confidence"
+    ENSEMBLE_DISAGREEMENT = "ensemble_disagreement"
 
 
 class DecisionStatus(StrEnum):

@@ -1,0 +1,47 @@
+# MINDTRACE parallel twin transforms (ADR-007, M10 planning).
+#
+# Each twin is a NAMED, FIXED, deterministic shift applied to the user's own
+# base effective weight vector w* - never a prompt, never a persona, never an
+# LLM-generated weight. `up`/`down` name FactorIds from schema/factors.yaml;
+# every other factor is left untouched (shift = 0).
+#
+# Vocabulary note: ADR-007 itself was written in the dossier's pre-M1 factor
+# vocabulary (growth, convenience, risk, impact, meaning, compounding,
+# skill_building, downside_protection) - docs/spec/03-factor-model.md records
+# exactly how that vocabulary was renamed/split before factors.yaml v1 shipped.
+# The `up`/`down` lists below are that mapping applied (M10 planning,
+# user-approved resolution for the two points spec/03 did not settle alone):
+#   - growth + skill_building -> skill_growth (spec/03 s2: "growth" split)
+#   - convenience             -> time_demand (spec/03 s2: folded in)
+#   - meaning                 -> values_alignment (spec/03 s2: "meaning to me" half of `impact`)
+#   - compounding             -> long_term_value (spec/03 s2: one of growth's three jobs;
+#                                redundant with the `long_term_value` Future You already lists)
+#   - downside_protection, risk (Safe You's up/down pair) both named the same
+#     current factor (`downside_risk`, spec/03 s2) with contradictory
+#     directions - resolved to keep `downside_protection` only (up), treating
+#     the `down: risk` line as the same signal mis-stated, not a second one.
+#   - Future You's "shift magnitude scales with the decision's horizon" is
+#     NOT implemented in v1: no `horizon` field exists anywhere on `Decision`
+#     today (the `Scenario` aggregate that would carry it was never built).
+#     Future You uses the same flat `lambda` as every other twin; horizon
+#     scaling is deferred, not approximated via an unrelated field.
+version: 1
+factor_schema_version: 1
+lambda: 0.35
+twins:
+  - id: career
+    label: "Career You"
+    up: [skill_growth, option_value]
+    down: [time_demand, stability]
+  - id: safe
+    label: "Safe You"
+    up: [financial_security, stability, downside_risk, reversibility]
+    down: [novelty]
+  - id: dream
+    label: "Dream You"
+    up: [intrinsic_interest, creative_expression, values_alignment]
+    down: [financial_security]
+  - id: future
+    label: "Future You"
+    up: [long_term_value, option_value]
+    down: []

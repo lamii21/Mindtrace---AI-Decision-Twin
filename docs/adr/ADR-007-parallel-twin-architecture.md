@@ -87,3 +87,24 @@ predict prediction error" lives in `notebooks/` and may retune `λ` (logged, ver
 - If `w★` is near-degenerate (brand-new twin, flat weights) the parallel twins are nearly
   identical and the spread is uninformative — which correctly yields low `C` via
   `evidence_sufficiency` anyway. Documented, not a bug.
+
+## M10 implementation note
+
+This ADR predates `spec/03-factor-model.md`'s factor rename
+(`growth`/`convenience`/`risk`/`impact`/`meaning`/`compounding`/`skill_building`/
+`downside_protection` are pre-M1 dossier names, not current factor ids). `schema/twins.yaml`
+(the implementation of this ADR) resolves the mapping via that spec's rename table, plus two
+genuinely ambiguous points the spec doesn't settle, decided for v1:
+
+- **Safe You** lists both "↑ `downside_protection`" and "↓ `risk`", which both plausibly map to
+  the single current factor `downside_risk` with opposite directions. v1 keeps only the
+  `downside_protection` reading (↑ `financial_security`, `stability`, `downside_risk`,
+  `reversibility`; ↓ `novelty`) and treats the `risk`-down reading as the same signal
+  mis-stated, not a second independent one.
+- **Future You**'s shift was specified to "scale with the decision's stated horizon", but no
+  `horizon` field exists on `Decision` (the `Scenario` aggregate that would carry one was never
+  built). v1 uses the same flat `λ` as every other twin; horizon-scaling is deferred, not
+  approximated via an unrelated field.
+
+Both are implementation decisions within this ADR's existing design, not changes to it - revisit
+if/when `Decision`/`Scenario` gains a real horizon field.

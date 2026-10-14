@@ -1,12 +1,18 @@
 """The simulation aggregate (``docs/architecture/02-domain-model.md`` AG-7/AG-8).
 
-M7's scope is the roadmap's "base twin only" slice: exactly one
+M7 shipped the roadmap's "base twin only" slice: exactly one
 ``TwinConfigResult`` (labelled ``"base"``), no parallel twins, no synthesis,
-no debate - those are M10. Since M8, ``Prediction.twin_version_id`` is
-populated with the exact ``TwinVersion`` used to resolve the posterior - the
-cold-start ``initial_posterior(TRAIT_MODEL)`` fallback (``None``) is used
-only until the user has a persisted ``Twin``/``TwinVersion``
-(``services/decision_service.py``'s posterior-resolution seam).
+no debate. M10 (ADR-007) adds the parallel twins themselves
+(``engines.simulation.parallel``) and the deterministic synthesis vote
+(``engines.debate.synthesis``) - ``Simulation.twin_configs`` now typically
+holds 5 entries (``"base"`` plus the 4 named twins from ``schema/twins.yaml``)
+and ``Simulation.synthesis`` is populated. ``synthesis`` stays ``None`` only
+for pre-M10 persisted rows (JSONB back-compat) - a fresh ``simulate()`` call
+always populates it. Since M8, ``Prediction.twin_version_id`` is populated
+with the exact ``TwinVersion`` used to resolve the posterior - the cold-start
+``initial_posterior(TRAIT_MODEL)`` fallback (``None``) is used only until the
+user has a persisted ``Twin``/``TwinVersion`` (``services/decision_service.py``'s
+posterior-resolution seam).
 
 Both types are tier-B (immutable once written) and hold **only** the
 categorical/numeric sub-results M3/M4/M5/M6-A already produced - never the
@@ -24,8 +30,9 @@ nothing (layer 0; ``llm`` is layer 1, above it - ``.importlinter``'s
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from mindtrace.domain.confidence import ConfidenceResult
 from mindtrace.domain.decision import Contribution, DecisionResult, FactorVector
@@ -81,13 +88,33 @@ class SimulationExtraction(BaseModel):
 
 
 class TwinConfigResult(BaseModel):
-    """One twin's run inside a ``Simulation`` - always exactly one, labelled ``"base"``, in M7."""
+    """One twin's run inside a ``Simulation`` - ``"base"`` plus 4 named twins since M10."""
 
     model_config = _FrozenModel
 
     twin: str
     preference: EffectiveWeightVector
     decision: DecisionResult
+
+
+class SynthesisResult(BaseModel):
+    """The ensemble's final recommendation (ADR-007, M10): a weight-of-evidence vote + diagnostics.
+
+    Never replaces any single twin's own ``DecisionResult`` - ``recommended_label``
+    is read *alongside* (never instead of) each ``TwinConfigResult.decision.label``.
+    ``ensemble_disagreement`` itself is not duplicated here - it already lives
+    on ``ConfidenceResult.inputs.ensemble_disagreement`` (M4, unmodified); this
+    type only adds what M4 has no slot for: the vote tally and the conflict axis.
+    """
+
+    model_config = _FrozenModel
+
+    recommended_label: DecisionOutcome
+    margin: float = Field(ge=0.0, le=1.0)
+    vote_tally: dict[str, float]
+    label_consensus: Literal["unanimous", "majority", "split"]
+    conflict_axis: tuple[FactorId, ...]
+    synthesis_version: str
 
 
 class Simulation(BaseModel):
@@ -102,6 +129,7 @@ class Simulation(BaseModel):
     scenario_content_hash: str
     extraction: SimulationExtraction
     twin_configs: tuple[TwinConfigResult, ...]
+    synthesis: SynthesisResult | None = None
     model_confidence: ConfidenceResult
     created_at: datetime
 
@@ -145,5 +173,6 @@ __all__ = [
     "Prediction",
     "Simulation",
     "SimulationExtraction",
+    "SynthesisResult",
     "TwinConfigResult",
 ]
