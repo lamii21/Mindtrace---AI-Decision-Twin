@@ -94,7 +94,6 @@ forbidden_modules =
     mindtrace.db
     mindtrace.security
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:events-is-pure]
 name = Events depends only on domain: no frameworks, no outward mindtrace imports
@@ -123,7 +122,6 @@ forbidden_modules =
     mindtrace.db
     mindtrace.security
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:engines-is-pure]
 name = Engines depend only on domain (+ numpy/scipy): no frameworks, no persistence, no LLM
@@ -151,7 +149,6 @@ forbidden_modules =
     mindtrace.db
     mindtrace.security
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:llm-is-contained]
 name = LLM boundary depends only on domain: no deterministic engines, no persistence, no API
@@ -175,7 +172,6 @@ forbidden_modules =
     mindtrace.db
     mindtrace.security
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:orchestration-is-contained]
 name = Orchestration depends on domain/engines/llm only: no frameworks, no persistence, no API
@@ -201,7 +197,6 @@ forbidden_modules =
     mindtrace.db
     mindtrace.security
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:config-is-thin]
 name = Config stays thin: only depends on domain
@@ -246,7 +241,6 @@ forbidden_modules =
     mindtrace.orchestration
     mindtrace.security
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:security-is-contained]
 name = security depends on domain only: never db (ADR-009 mutual isolation)
@@ -274,7 +268,6 @@ forbidden_modules =
     mindtrace.orchestration
     mindtrace.db
     mindtrace.observability
-    mindtrace.workers
 
 [importlinter:contract:observability-is-contained]
 name = observability depends on domain only: never db/api/frameworks
@@ -302,7 +295,6 @@ forbidden_modules =
     mindtrace.orchestration
     mindtrace.db
     mindtrace.security
-    mindtrace.workers
 # M9 note: mindtrace.observability now exists (``AuditLog`` construction).
 # Mirrors security-is-contained exactly: pure, domain-only, never imports
 # db/ itself - services/ wires its output into a db/ repository, the same
@@ -325,7 +317,6 @@ forbidden_modules =
     httpx2
     mindtrace.api
     mindtrace.config
-    mindtrace.workers
 # sqlalchemy/alembic/mindtrace.orchestration/mindtrace.engines/mindtrace.llm/
 # mindtrace.observability deliberately NOT listed: import-linter's
 # `forbidden` contract checks the full transitive graph, and services
@@ -398,7 +389,6 @@ forbidden_modules =
     anthropic
     openai
     langchain
-    mindtrace.workers
 # sqlalchemy/alembic/mindtrace.db/mindtrace.llm/mindtrace.orchestration/
 # mindtrace.engines deliberately NOT listed: import-linter's `forbidden`
 # contract checks the full transitive graph, and api legitimately depends on
@@ -436,6 +426,40 @@ forbidden_modules =
     openai
     langchain
     langchain_core
+
+[importlinter:contract:observability-libs-isolated]
+name = structlog/opentelemetry only under mindtrace.observability
+type = forbidden
+source_modules =
+    mindtrace.domain
+    mindtrace.events
+    mindtrace.engines
+    mindtrace.llm
+    mindtrace.orchestration
+    mindtrace.config
+    mindtrace.db
+    mindtrace.security
+forbidden_modules =
+    structlog
+    opentelemetry
+# M10 note: observability/ is the one layer-1 module permitted these two
+# focused, observability-only third-party libraries - the same pattern
+# already pinned for sqlalchemy (db-is-contained), cryptography
+# (security-is-contained), and the LLM provider SDKs (provider-sdks-isolated
+# above). Every other layer logs/traces only through observability.
+# get_logger/traced_span, never a direct import or a bare print(). `mindtrace.
+# api`/`mindtrace.services` are deliberately NOT listed in source_modules,
+# for the identical reason `provider-sdks-isolated` omits `services`/`llm`
+# and `services-is-contained` omits `sqlalchemy`/`orchestration`: this
+# `forbidden` contract checks the full transitive graph, and both
+# legitimately depend on `mindtrace.observability` itself
+# (`decision_service`'s `get_logger`/`traced_span` calls) - forbidding
+# structlog/opentelemetry transitively through that edge would make the
+# edge impossible to express. What stays real and enforced:
+# domain/events/engines/llm/orchestration/config/db/security have no
+# legitimate edge to `mindtrace.observability` at all, so this contract
+# still catches any of them reaching structlog/opentelemetry, directly or
+# otherwise.
 
 [importlinter:contract:layers]
 name = Layered architecture (M6-B subset)
