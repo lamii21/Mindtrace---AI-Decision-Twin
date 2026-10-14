@@ -33,7 +33,7 @@ from mindtrace.db.repositories import (
     simulation_repository,
     twin_repository,
 )
-from mindtrace.domain.confidence import ConfidenceResult
+from mindtrace.domain.confidence import ConfidenceResult, ExtractionSignal
 from mindtrace.domain.decision import DecisionResult
 from mindtrace.domain.decision_record import Decision, DecisionOption
 from mindtrace.domain.enums import (
@@ -42,6 +42,7 @@ from mindtrace.domain.enums import (
     DecisionOutcome,
     DecisionStatus,
     EvidenceSourceKind,
+    ExtractionMode,
     Polarity,
     UncertainReason,
 )
@@ -60,14 +61,21 @@ from mindtrace.domain.simulation import (
     Prediction,
     Simulation,
     SimulationExtraction,
+    SynthesisResult,
     TwinConfigResult,
 )
 from mindtrace.domain.traits import PreferencePosterior, TraitModel, load_trait_model
-from mindtrace.engines.confidence.compute import confidence_uncertain_reason
+from mindtrace.domain.twins import BASE_TWIN_ID, TwinTable, load_twin_table
+from mindtrace.engines.confidence.compute import compute_confidence, confidence_uncertain_reason
 from mindtrace.engines.confidence.config import ConfidenceConfig
+from mindtrace.engines.debate.synthesis import synthesize
+from mindtrace.engines.preference.posterior import effective_sample_sizes
 from mindtrace.engines.preference.prior import initial_posterior
+from mindtrace.engines.simulation.parallel import ensemble_observation_from, run_twin_ensemble
 from mindtrace.llm.client import LLMClient
 from mindtrace.llm.config import ExtractionConfig
+from mindtrace.llm.schema import ExtractionOutcome
+from mindtrace.observability import build_audit_log, get_logger, traced_span
 from mindtrace.services.errors import (
     InvalidChosenOptionError,
     InvalidStatusTransitionError,
@@ -81,6 +89,9 @@ _PATCH_REACHABLE_STATUSES = frozenset({DecisionStatus.COMMITTED, DecisionStatus.
 # I/O happens on any individual `simulate()` call because of this.
 _TAXONOMY: FactorTaxonomy = load_factor_taxonomy()
 _TRAIT_MODEL: TraitModel = load_trait_model(taxonomy=_TAXONOMY)
+_TWIN_TABLE: TwinTable = load_twin_table(taxonomy=_TAXONOMY)
+
+_logger = get_logger(__name__)
 
 # `ExtractionConfig.provider`/`.model` have no default (M5's own decision -
 # every caller must say which client it is actually using). "unavailable"/
@@ -299,7 +310,7 @@ def run_simulation(
     now: datetime,
     simulation_id: SimulationId | None = None,
 ) -> tuple[Simulation, Prediction]:
-    """Run and persist one simulation against an already-validated ``decision`` (M7/M8).
+    """Run and persist one simulation against an already-validated ``decision`` (M7/M8/M10).
 
     Calls ``orchestration.simulate()`` exactly once - the canonical M5 ->
     M6-A -> M3 -> M4 composition, computed nowhere else; this module never
@@ -311,6 +322,21 @@ def run_simulation(
     (M8 planning s9). This function never creates a ``Twin`` merely because
     it ran.
 
+    **M10** (ADR-007): after ``orchestration.simulate()`` returns the base
+    twin's own result, :func:`~mindtrace.engines.simulation.parallel.
+    run_twin_ensemble` re-parametrises the *same* ``decide()`` call once per
+    named twin (``schema/twins.yaml``) over the *same* extracted factors -
+    never a second extraction, never a duplicated MCDA implementation.
+    ``orchestration.simulate()`` itself stays byte-for-byte unchanged (its
+    own internal, degenerate ``ensemble=None`` confidence call is discarded
+    here in favour of one real ``compute_confidence()`` call fed the genuine
+    ``EnsembleObservation`` - M10 planning: the roadmap's own file list
+    modifies ``services/decision_service.py``, not ``orchestration/
+    simulation.py``, so the fan-out/recompute lives here, not there).
+    With exactly one twin (hypothetically, if ``schema/twins.yaml`` ever
+    declared zero parallel twins) this reduces to exactly M7/M8's own
+    single-twin behaviour - the single-twin-compatibility guarantee.
+
     ``simulation_id`` lets a caller pre-allocate the id before this runs
     (the reserve-before-compute idempotency design in
     ``api/routers/simulate.py``); omitted, a fresh one is minted here.
@@ -321,6 +347,53 @@ def run_simulation(
     config = orchestration.SimulationConfig(extraction_config=_DEFAULT_EXTRACTION_CONFIG)
     result = orchestration.simulate(
         decision.context, _TAXONOMY, _TRAIT_MODEL, posterior, llm_client, config=config
+    )
+
+    _logger.info(
+        "m10_ensemble_started",
+        user_id=str(user_id),
+        decision_id=str(decision_id),
+        twin_count=1 + len(_TWIN_TABLE.twins),
+    )
+    with traced_span("m10.twin_ensemble", decision_id=str(decision_id)):
+        base_twin_result = TwinConfigResult(
+            twin=BASE_TWIN_ID, preference=result.preference, decision=result.decision
+        )
+        twin_results = run_twin_ensemble(
+            _TAXONOMY,
+            result.preference,
+            base_twin_result,
+            _TWIN_TABLE.twins,
+            result.extraction.factors,
+            lam=_TWIN_TABLE.lambda_,
+            mcda_config=config.mcda_config,
+        )
+        ensemble = ensemble_observation_from(twin_results)
+
+    with traced_span("m10.confidence", decision_id=str(decision_id)):
+        n_eff = effective_sample_sizes(posterior.weights, _TRAIT_MODEL)
+        confidence = compute_confidence(
+            result.decision,
+            n_eff=n_eff,
+            ensemble=ensemble,
+            calibration=None,
+            extraction=_extraction_signal_for(result.extraction),
+            config=config.confidence_config,
+            mcda_config=config.mcda_config,
+        )
+
+    with traced_span("m10.synthesis", decision_id=str(decision_id)):
+        synthesis = synthesize(twin_results, base_twin_id=BASE_TWIN_ID)
+
+    _logger.info(
+        "m10_ensemble_synthesized",
+        user_id=str(user_id),
+        decision_id=str(decision_id),
+        twin_labels={r.twin: r.decision.label.value for r in twin_results},
+        recommendation=synthesis.recommended_label.value,
+        label_consensus=synthesis.label_consensus,
+        confidence_value=confidence.value,
+        engine_version=result.simulation_version,
     )
 
     sim_id = simulation_id if simulation_id is not None else SimulationId(uuid4())
@@ -340,15 +413,14 @@ def run_simulation(
             failure_type=result.extraction.failure_type,
             agreement=result.extraction.agreement,
         ),
-        twin_configs=(
-            TwinConfigResult(twin="base", preference=result.preference, decision=result.decision),
-        ),
-        model_confidence=result.confidence,
+        twin_configs=twin_results,
+        synthesis=synthesis,
+        model_confidence=confidence,
         created_at=now,
     )
 
     predicted_decision, uncertain_reason = _compose_final_label(
-        result.decision, result.confidence, config.confidence_config
+        result.decision, synthesis, confidence, config.confidence_config
     )
     prediction = Prediction(
         id=prediction_id,
@@ -357,7 +429,7 @@ def run_simulation(
         twin_version_id=twin_version_id,
         predicted_decision=predicted_decision,
         uncertain_reason=uncertain_reason,
-        predicted_confidence=result.confidence.value,
+        predicted_confidence=confidence.value,
         credible_interval=None,
         factor_contributions=result.decision.contributions,
         margin=result.decision.margin,
@@ -378,10 +450,54 @@ def run_simulation(
         created_at=now,
     )
 
+    audit = build_audit_log(
+        user_id=user_id,
+        actor=f"user:{user_id}",
+        action="simulation.ensemble_synthesized",
+        target_type="simulation",
+        target_id=UUID(str(sim_id)),
+        engine_version=result.simulation_version,
+        payload={
+            "twin_count": len(twin_results),
+            "label_consensus": synthesis.label_consensus,
+            "recommended_label": synthesis.recommended_label.value,
+            "predicted_decision": predicted_decision.value,
+            "confidence_value": confidence.value,
+            "scenario_content_hash": result.scenario_content_hash,
+        },
+        at=now,
+    )
+
     simulation_repository.persist_simulation(
-        simulation=simulation, prediction=prediction, evidence=evidence, user_id=user_id
+        simulation=simulation,
+        prediction=prediction,
+        evidence=evidence,
+        audit=audit,
+        user_id=user_id,
     )
     return simulation, prediction
+
+
+def _extraction_signal_for(outcome: ExtractionOutcome) -> ExtractionSignal | None:
+    """Map M5's ``ExtractionOutcome`` onto the ``ExtractionSignal`` M4 accepts.
+
+    A lookup, not a computation - deliberately duplicated from
+    ``orchestration.simulation``'s own private helper of the same shape
+    (M10 planning): ``orchestration/simulation.py`` stays byte-for-byte
+    unmodified (see :func:`run_simulation`'s docstring), so this service
+    needs its own copy to recompute confidence with the real ensemble. Both
+    copies are this same ~5-line dispatch over ``ExtractionOutcome``'s own
+    already-frozen contract, not independent logic that could drift in a
+    way that changes a result - a change to either would need the other
+    updated to match, which `tests/unit/services/test_decision_service.py`
+    (parity test) checks for explicitly.
+    """
+    if outcome.status == "failed":
+        return None
+    if outcome.metadata.mode is ExtractionMode.SELF_CONSISTENCY:
+        assert outcome.agreement is not None  # guaranteed by extract_factors_self_consistency
+        return ExtractionSignal.self_consistency(outcome.agreement)
+    return ExtractionSignal.single()
 
 
 def _resolve_posterior(user_id: UserId) -> tuple[PreferencePosterior, TwinVersionId | None]:
@@ -402,23 +518,42 @@ def _resolve_posterior(user_id: UserId) -> tuple[PreferencePosterior, TwinVersio
 
 
 def _compose_final_label(
-    decision: DecisionResult, confidence: ConfidenceResult, confidence_config: ConfidenceConfig
+    base_decision: DecisionResult,
+    synthesis: SynthesisResult,
+    confidence: ConfidenceResult,
+    confidence_config: ConfidenceConfig,
 ) -> tuple[DecisionOutcome, UncertainReason | None]:
-    """The confidence-gated, product-level label (M7 planning s13).
+    """The confidence-gated, product-level label (M7 planning s13; M10 adds the ensemble gate).
 
     M3's own ``decision.label``/``uncertain_reason`` are never modified -
-    this only decides what ``Prediction.predicted_decision`` reports, using
-    ``UncertainReason``'s own documented priority order: the score-band/
-    coverage gates (M3, already baked into ``decision.label`` before this
-    runs) take precedence over the confidence gate, which only ever applies
-    when M3 itself said ``ACCEPT``/``REJECT``.
+    this only decides what ``Prediction.predicted_decision`` reports. Three
+    gates, in this order:
+
+    1. The base twin's own score-band/coverage gate (M3, already baked into
+       ``base_decision.label`` before this runs) - takes precedence over
+       everything else, exactly as M7/M8.
+    2. The ensemble vote gate (M10, ADR-007): the base twin alone was fine,
+       but ``synthesis.recommended_label`` - the weight-of-evidence vote
+       across *all* twins - itself landed on ``UNCERTAIN`` (the other twins
+       disagreed enough to flip it). A genuine disagreement signal, never a
+       fabricated one - ``synthesis.py`` computes no mathematics of its own
+       here, only tallies each twin's already-computed label.
+    3. The M4 confidence gate, unchanged - only reached once both of the
+       above have already said "no uncertainty here".
+
+    When no gate fires, the final label is ``synthesis.recommended_label``
+    (not necessarily ``base_decision.label`` - the vote can legitimately
+    flip ACCEPT/REJECT when the other twins strongly disagree; that is the
+    entire point of the ensemble, not a bug).
     """
-    if decision.label is DecisionOutcome.UNCERTAIN:
-        return decision.label, decision.uncertain_reason
+    if base_decision.label is DecisionOutcome.UNCERTAIN:
+        return base_decision.label, base_decision.uncertain_reason
+    if synthesis.recommended_label is DecisionOutcome.UNCERTAIN:
+        return DecisionOutcome.UNCERTAIN, UncertainReason.ENSEMBLE_DISAGREEMENT
     reason = confidence_uncertain_reason(confidence, confidence_config)
     if reason is not None:
         return DecisionOutcome.UNCERTAIN, reason
-    return decision.label, None
+    return synthesis.recommended_label, None
 
 
 def _validate_chosen_option(chosen_option: str, options: tuple[DecisionOption, ...]) -> None:

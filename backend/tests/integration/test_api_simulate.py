@@ -108,11 +108,21 @@ class TestHappyPath:
         body = response.json()
         assert body["decision_id"] == decision["id"]
         assert body["twin_version_id"] is None
-        assert body["synthesis"] is None
+        # M10 (ADR-007): every /v1/simulate call runs base + 4 named twins and
+        # populates a real synthesis vote; debate/elicitation_hint stay out
+        # of this milestone's scope (see test_api_simulate_ensemble.py for
+        # the M10-specific ensemble/synthesis assertions).
+        assert body["synthesis"] is not None
         assert body["debate"] is None
         assert body["elicitation_hint"] is None
-        assert len(body["per_twin"]) == 1
-        assert body["per_twin"][0]["twin"] == "base"
+        assert len(body["per_twin"]) == 5
+        assert {twin["twin"] for twin in body["per_twin"]} == {
+            "base",
+            "career",
+            "safe",
+            "dream",
+            "future",
+        }
 
         decision_after = api_client.get(f"/v1/decisions/{decision['id']}", headers=headers).json()
         assert decision_after["status"] == "simulated"
@@ -143,10 +153,19 @@ class TestHappyPath:
 
 
 class TestDirectOrchestratorParity:
-    """The persisted/returned result must match a direct ``orchestration.simulate()`` call
-    exactly - no hidden math in the service or the router (M7 planning s23 test B/K)."""
+    """The base twin's own score/margin/coverage/contributions must match a direct
+    ``orchestration.simulate()`` call exactly - no hidden MCDA math in the service or the
+    router (M7 planning s23 test B/K).
 
-    def test_score_confidence_contributions_match_direct_orchestrator_call(
+    ``confidence`` is deliberately **not** compared for equality here since M10
+    (ADR-007): ``/v1/simulate`` now recomputes confidence with the real
+    parallel-twin ``EnsembleObservation``, while this direct, single-twin
+    ``orchestration.simulate()`` call still gets the exact M7 degenerate
+    ``ensemble=None`` path - see ``test_api_simulate_ensemble.py`` for the
+    M10 confidence-parity/ensemble-specific assertions.
+    """
+
+    def test_score_margin_coverage_contributions_match_direct_orchestrator_call(
         self, api_client: TestClient
     ) -> None:
         response_text = fully_known_response()
@@ -173,8 +192,6 @@ class TestDirectOrchestratorParity:
         assert body["decision"]["score"] == direct.decision.score
         assert body["decision"]["margin"] == direct.decision.margin
         assert body["decision"]["coverage"] == direct.decision.coverage
-        assert body["confidence"]["value"] == direct.confidence.value
-        assert body["confidence"]["raw"] == direct.confidence.raw
         assert len(body["contributions"]) == len(direct.decision.contributions)
         for out, direct_c in zip(body["contributions"], direct.decision.contributions, strict=True):
             assert out["factor_id"] == direct_c.factor_id

@@ -1,24 +1,34 @@
-"""``/v1/simulate`` + ``/v1/simulations/{id}`` DTOs (``docs/api/08`` s5, M7/M8-scoped).
+"""``/v1/simulate`` + ``/v1/simulations/{id}`` DTOs (``docs/api/08`` s5, M7/M8/M10-scoped).
 
 ``docs/api/08``'s documented ``SimulateRequest``/``SimulationOut`` describe
 the **full post-M10** contract (``twins``, ``per_twin``, ``synthesis``,
-``debate``, ``elicitation_hint`` all require parallel twins/debate, M10,
-still out of scope). This module implements the documented subset M7/M8 can
-honestly produce:
+``debate``, ``elicitation_hint``). M10 fills in ``per_twin``/``synthesis``
+for real; ``debate``/``elicitation_hint`` stay ``null`` - this module still
+implements only the subset actually produced:
 
-- ``SimulateRequest`` omits ``twins``/``scenario_id`` - accepting either
-  would imply a capability (twin selection, conditional scenarios) this
-  milestone does not have.
-- ``SimulationOut.per_twin`` always has exactly one entry, labelled
-  ``"base"``.
-- ``synthesis``/``debate``/``elicitation_hint`` are always ``null`` - each
-  requires M10. ``twin_version_id`` is real as of M8: the exact
-  ``TwinVersion`` the posterior came from, or ``null`` for the cold-start
-  fallback (no persisted ``Twin``/``TwinVersion`` yet for this user).
+- ``SimulateRequest`` omits ``twins``/``scenario_id`` - every twin from
+  ``schema/twins.yaml`` always runs (no per-request twin selection yet);
+  accepting ``scenario_id`` would imply a conditional-scenario capability
+  this milestone does not have.
+- ``SimulationOut.per_twin`` has one entry per twin in
+  ``schema/twins.yaml`` plus ``"base"`` (5 today) - never a prompt/persona,
+  a deterministic re-parametrisation of the same MCDA engine (ADR-007).
+- ``synthesis`` is the deterministic weight-of-evidence vote (ADR-007) -
+  always populated for a fresh simulation; ``null`` only for simulations
+  persisted before M10 existed (no backfill).
+- ``debate``/``elicitation_hint`` are still always ``null`` - the optional
+  LLM-verbalised debate prose (ADR-003 r4) and the cold-start elicitation
+  hint are both out of this milestone's scope.
+- ``twin_version_id`` is real as of M8: the exact ``TwinVersion`` the
+  posterior came from, or ``null`` for the cold-start fallback (no
+  persisted ``Twin``/``TwinVersion`` yet for this user).
 - ``decision.label``/``uncertain_reason`` are the confidence-gated,
   product-level values (``Prediction.predicted_decision``/
-  ``uncertain_reason``); ``decision.score``/``margin``/``coverage`` are M3's
-  raw, never-adjusted values (``docs/api/08`` s5's own "score and
+  ``uncertain_reason``) - as of M10 this can also be
+  ``synthesis.recommendation``, not only the base twin's own raw label, and
+  ``uncertain_reason`` can be ``"ensemble_disagreement"`` (M10's own gate);
+  ``decision.score``/``margin``/``coverage`` stay M3's raw, base-twin-only,
+  never-adjusted values (``docs/api/08`` s5's own "score and
   confidence.value ... never wired to the same source" contract test, read
   as the general principle it states).
 - ``contributions``/``confidence`` mirror the domain ``Contribution``/
@@ -27,7 +37,7 @@ honestly produce:
   contract doc) the math does not actually need.
 - ``trace`` is intentionally shallow (AG-9: "depth is 2-3"): one
   ``decision`` node, one ``factor`` node per known factor, one ``evidence``
-  node for the single edge M7 actually writes - never a fabricated
+  node for the single edge M7/M10 actually writes - never a fabricated
   ``memory`` chain, since no memory-to-preference pipeline exists yet.
 """
 
@@ -42,7 +52,10 @@ from pydantic import BaseModel, ConfigDict
 _FrozenExtraForbid = ConfigDict(extra="forbid")
 
 DecisionLabelOut = Literal["ACCEPT", "REJECT", "UNCERTAIN"]
-UncertainReasonOut = Literal["score_in_band", "insufficient_coverage", "low_model_confidence"]
+UncertainReasonOut = Literal[
+    "score_in_band", "insufficient_coverage", "low_model_confidence", "ensemble_disagreement"
+]
+LabelConsensusOut = Literal["unanimous", "majority", "split"]
 
 
 class SimulateRequest(BaseModel):
@@ -117,7 +130,7 @@ class DecisionSummaryOut(BaseModel):
 
 
 class TwinResultOut(BaseModel):
-    """One twin's result inside ``per_twin`` - always exactly one entry (``"base"``) in M7."""
+    """One twin's result inside ``per_twin`` - ``"base"`` plus 4 named twins since M10."""
 
     model_config = _FrozenExtraForbid
 
@@ -125,6 +138,17 @@ class TwinResultOut(BaseModel):
     label: DecisionLabelOut
     score: float
     top_contributions: list[ContributionOut]
+
+
+class SynthesisOut(BaseModel):
+    """The ensemble's deterministic weight-of-evidence vote (ADR-007, M10)."""
+
+    model_config = _FrozenExtraForbid
+
+    recommendation: DecisionLabelOut
+    label_consensus: LabelConsensusOut
+    conflict_axis: list[str]
+    vote: dict[str, str]
 
 
 class TraceNodeOut(BaseModel):
@@ -171,7 +195,7 @@ class SimulationOut(BaseModel):
     contributions: list[ContributionOut]
     trace: TraceGraphOut
     per_twin: list[TwinResultOut]
-    synthesis: None
+    synthesis: SynthesisOut | None
     debate: None
     elicitation_hint: None
     created_at: datetime

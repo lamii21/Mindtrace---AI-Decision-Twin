@@ -423,6 +423,82 @@ def test_0004_data_survives_upgrade_to_0005_and_downgrade_back_to_0004(
         db_session.reset_engine_for_tests()
 
 
+def test_0005_data_survives_upgrade_to_0006_and_downgrade_back_to_0005(
+    fresh_owner_url: str,
+) -> None:
+    """current 0005 -> upgrade 0006 -> verify -> downgrade 0005 -> upgrade 0006.
+
+    0006 only adds one nullable column (``simulation.synthesis``) - no new
+    table, so the table set is unchanged throughout. A pre-existing
+    ``simulation`` row (0005-era, no ``synthesis`` column at all yet) must
+    survive the round trip and read back ``synthesis IS NULL`` after
+    upgrading - never backfilled, never dropped (M10 planning).
+    """
+    config = _alembic_config()
+    os.environ["MINDTRACE_DATABASE_URL"] = fresh_owner_url
+    get_settings.cache_clear()
+    try:
+        command.downgrade(config, "base")
+        command.upgrade(config, "0005")
+
+        engine = create_engine(fresh_owner_url)
+        user_id = uuid.uuid4()
+        decision_id = uuid.uuid4()
+        simulation_id = uuid.uuid4()
+        try:
+            _insert_user(engine, user_id)
+            _insert_decision_and_simulation(
+                engine, user_id=user_id, decision_id=decision_id, simulation_id=simulation_id
+            )
+        finally:
+            engine.dispose()
+
+        command.upgrade(config, "0006")
+        engine = create_engine(fresh_owner_url)
+        try:
+            tables = set(inspect(engine).get_table_names())
+            with engine.connect() as conn:
+                survived: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+                synthesis_value: object = conn.execute(
+                    text("SELECT synthesis FROM simulation WHERE id = :id"),
+                    {"id": simulation_id},
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert tables == _TABLES_AT_0005
+        assert survived == f"{user_id}@example.dev"
+        assert synthesis_value is None
+
+        command.downgrade(config, "0005")
+        engine = create_engine(fresh_owner_url)
+        try:
+            with engine.connect() as conn:
+                columns = {
+                    row[0]
+                    for row in conn.execute(
+                        text(
+                            "SELECT column_name FROM information_schema.columns "
+                            "WHERE table_name = 'simulation'"
+                        )
+                    )
+                }
+                still_there: str = conn.execute(
+                    text("SELECT email FROM users WHERE id = :id"), {"id": user_id}
+                ).scalar_one()
+        finally:
+            engine.dispose()
+        assert "synthesis" not in columns
+        assert still_there == f"{user_id}@example.dev"
+
+        command.upgrade(config, "0006")
+    finally:
+        os.environ.pop("MINDTRACE_DATABASE_URL", None)
+        get_settings.cache_clear()
+        db_session.reset_engine_for_tests()
+
+
 def test_rls_is_enabled_and_forced_on_every_user_owned_table(fresh_owner_url: str) -> None:
     run_migrations(fresh_owner_url)
     engine = create_engine(fresh_owner_url)

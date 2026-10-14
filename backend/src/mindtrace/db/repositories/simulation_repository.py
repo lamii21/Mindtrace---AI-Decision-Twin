@@ -1,11 +1,13 @@
 """Persistence for AG-7/AG-8's ``Simulation``/``Prediction`` (M7-scoped: base twin only).
 
-:func:`persist_simulation` is the one place all four writes a completed
+:func:`persist_simulation` is the one place all five writes a completed
 ``/v1/simulate`` call produces - the ``Simulation`` row, its ``Prediction``,
-its ``Evidence`` edge, and the ``Decision``'s transition to ``simulated`` -
-happen inside a single ``user_scoped_session``. One session is one
-transaction is one commit: either the whole graph becomes visible together,
-or a failure partway through rolls all four back together (M7 planning s19).
+its ``Evidence`` edge, its ``AuditLog`` row (M10 - one derivation, one audit
+row, the same ``audit/`` pattern M9's dispute/deletion paths already use),
+and the ``Decision``'s transition to ``simulated`` - happen inside a single
+``user_scoped_session``. One session is one transaction is one commit:
+either the whole graph becomes visible together, or a failure partway
+through rolls all five back together (M7 planning s19).
 Nothing here is encrypted (ADR-009) - see ``db/models/simulation.py``'s
 module docstring for why every field is safe as plaintext.
 """
@@ -16,9 +18,10 @@ from sqlalchemy import select
 
 from mindtrace.db.models.prediction import PredictionModel
 from mindtrace.db.models.simulation import SimulationModel
-from mindtrace.db.repositories import decision_repository
+from mindtrace.db.repositories import audit_repository, decision_repository
 from mindtrace.db.repositories.evidence_repository import PostgresEvidenceStore
 from mindtrace.db.session import user_scoped_session
+from mindtrace.domain.audit import AuditLog
 from mindtrace.domain.confidence import ConfidenceResult
 from mindtrace.domain.decision import Contribution
 from mindtrace.domain.enums import DecisionOutcome, UncertainReason
@@ -28,14 +31,20 @@ from mindtrace.domain.simulation import (
     Prediction,
     Simulation,
     SimulationExtraction,
+    SynthesisResult,
     TwinConfigResult,
 )
 
 
 def persist_simulation(
-    *, simulation: Simulation, prediction: Prediction, evidence: Evidence, user_id: UserId
+    *,
+    simulation: Simulation,
+    prediction: Prediction,
+    evidence: Evidence,
+    audit: AuditLog,
+    user_id: UserId,
 ) -> None:
-    """Atomically insert ``simulation``/``prediction``/``evidence``, mark the decision simulated.
+    """Atomically insert ``simulation``/``prediction``/``evidence``/``audit``, mark it simulated.
 
     The explicit ``flush()`` between the ``simulation``/``prediction`` inserts
     matters: neither model declares an ORM ``relationship()`` to the other
@@ -51,6 +60,7 @@ def persist_simulation(
         session.flush()
         session.add(_prediction_to_model(prediction, user_id=user_id))
         PostgresEvidenceStore(session, user_id=user_id).record(evidence)
+        audit_repository.append_audit(session, log=audit)
         decision_repository.mark_simulated(session, decision_id=simulation.decision_id)
 
 
@@ -100,6 +110,11 @@ def _simulation_to_model(simulation: Simulation) -> SimulationModel:
         scenario_content_hash=simulation.scenario_content_hash,
         extraction=simulation.extraction.model_dump(mode="json"),
         twin_configs=[tc.model_dump(mode="json") for tc in simulation.twin_configs],
+        synthesis=(
+            simulation.synthesis.model_dump(mode="json")
+            if simulation.synthesis is not None
+            else None
+        ),
         model_confidence=simulation.model_confidence.model_dump(mode="json"),
         created_at=simulation.created_at,
     )
@@ -134,6 +149,9 @@ def _model_to_simulation(row: SimulationModel) -> Simulation:
         scenario_content_hash=row.scenario_content_hash,
         extraction=SimulationExtraction.model_validate(row.extraction),
         twin_configs=tuple(TwinConfigResult.model_validate(tc) for tc in row.twin_configs),
+        synthesis=(
+            SynthesisResult.model_validate(row.synthesis) if row.synthesis is not None else None
+        ),
         model_confidence=ConfidenceResult.model_validate(row.model_confidence),
         created_at=row.created_at,
     )

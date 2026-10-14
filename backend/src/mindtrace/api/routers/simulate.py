@@ -38,6 +38,7 @@ from mindtrace.api.schemas.simulation import (
     DecisionSummaryOut,
     SimulateRequest,
     SimulationOut,
+    SynthesisOut,
     TraceEdgeOut,
     TraceGraphOut,
     TraceNodeOut,
@@ -48,7 +49,8 @@ from mindtrace.domain.confidence import ConfidenceResult
 from mindtrace.domain.decision import Contribution
 from mindtrace.domain.evidence import Evidence
 from mindtrace.domain.ids import DecisionId, SimulationId, UserId
-from mindtrace.domain.simulation import Prediction, Simulation
+from mindtrace.domain.simulation import Prediction, Simulation, SynthesisResult, TwinConfigResult
+from mindtrace.domain.twins import BASE_TWIN_ID
 from mindtrace.llm.client import LLMClient
 from mindtrace.services import decision_service, idempotency_service
 from mindtrace.services.errors import (
@@ -130,7 +132,7 @@ def to_simulation_out(
     user_id: UserId, simulation: Simulation, prediction: Prediction
 ) -> SimulationOut:
     """Assemble the response DTO for both the create and retrieval routes."""
-    base = simulation.twin_configs[0]  # exactly one, "base", in M7
+    base = next(tc for tc in simulation.twin_configs if tc.twin == BASE_TWIN_ID)
     decision_result = base.decision
     contributions = [_to_contribution_out(c) for c in decision_result.contributions]
     evidence = decision_service.list_evidence_for_simulation(user_id, simulation.id)
@@ -155,18 +157,35 @@ def to_simulation_out(
         confidence=_to_confidence_out(simulation.model_confidence),
         contributions=contributions,
         trace=_build_trace(simulation, evidence),
-        per_twin=[
-            TwinResultOut(
-                twin=base.twin,
-                label=decision_result.label.value,
-                score=decision_result.score,
-                top_contributions=contributions,
-            )
-        ],
-        synthesis=None,
+        per_twin=[_to_twin_result_out(tc) for tc in simulation.twin_configs],
+        synthesis=(
+            _to_synthesis_out(simulation.synthesis, simulation.twin_configs)
+            if simulation.synthesis is not None
+            else None
+        ),
         debate=None,
         elicitation_hint=None,
         created_at=simulation.created_at,
+    )
+
+
+def _to_twin_result_out(twin_config: TwinConfigResult) -> TwinResultOut:
+    return TwinResultOut(
+        twin=twin_config.twin,
+        label=twin_config.decision.label.value,
+        score=twin_config.decision.score,
+        top_contributions=[_to_contribution_out(c) for c in twin_config.decision.contributions],
+    )
+
+
+def _to_synthesis_out(
+    synthesis: SynthesisResult, twin_configs: tuple[TwinConfigResult, ...]
+) -> SynthesisOut:
+    return SynthesisOut(
+        recommendation=synthesis.recommended_label.value,
+        label_consensus=synthesis.label_consensus,
+        conflict_axis=[str(factor_id) for factor_id in synthesis.conflict_axis],
+        vote={tc.twin: tc.decision.label.value for tc in twin_configs},
     )
 
 
