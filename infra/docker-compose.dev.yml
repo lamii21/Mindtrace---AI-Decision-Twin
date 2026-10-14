@@ -20,6 +20,15 @@ services:
       timeout: 3s
       retries: 10
 
+  # M10 target (`src/mindtrace/workers/`): run the arq worker process against
+  # this container with `MINDTRACE_REDIS_URL=redis://localhost:6379 python -m
+  # mindtrace.workers.main`. No `worker` service is defined here yet - that
+  # needs `infra/backend.Dockerfile` (`docs/architecture/01-repository-
+  # structure.md`), which is itself part of the Phase 2+ "production
+  # deployment" milestone (`docs/11-roadmap-milestones.md`, "After M10"),
+  # not M10 - the backend app isn't containerized at all yet, so adding a
+  # `build:` block here ahead of that Dockerfile would just be a broken
+  # reference, not real infrastructure.
   redis:
     image: redis:7-alpine
     ports:

@@ -71,6 +71,25 @@ def postgres_owner_url() -> Iterator[str]:
 
 
 @pytest.fixture(scope="session")
+def redis_url() -> Iterator[str]:
+    """Start one real Redis container for the whole integration session (M10).
+
+    Never a mocked/in-memory stand-in for Redis - same rule as
+    :func:`postgres_owner_url` (M6-Persistence/Foundation planning s24/s30),
+    applied to the worker infrastructure M10 adds.
+    """
+    if not DOCKER_AVAILABLE:
+        pytest.skip("Docker/testcontainers unavailable in this environment")
+
+    from testcontainers.community.redis import RedisContainer  # noqa: PLC0415
+
+    with RedisContainer(image="redis:7-alpine") as container:
+        host = container.get_container_host_ip()
+        port = container.get_exposed_port(container.port)
+        yield f"redis://{host}:{port}"
+
+
+@pytest.fixture(scope="session")
 def app_database_url(postgres_owner_url: str) -> str:
     """The ``mindtrace_app`` role's connection URL - the *realistic* application role.
 

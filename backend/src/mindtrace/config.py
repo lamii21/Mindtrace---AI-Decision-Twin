@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     environment: Literal["dev", "ci", "prod"] = "dev"
     schema_dir: Path = Field(default_factory=default_schema_dir)
     database_url: str | None = None
+    redis_url: str = "redis://localhost:6379"  # M10 - matches infra/docker-compose.dev.yml
     master_key: SecretStr | None = None
     jwt_secret: SecretStr | None = None
     jwt_algorithm: str = "HS256"

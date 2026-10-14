@@ -23,6 +23,7 @@ dependencies = [
     "pyjwt>=2.9,<3",
     "argon2-cffi>=23.1,<24",
     "email-validator>=2.2,<3",
+    "arq>=0.26,<1",
     "structlog>=24.4,<25",
     "opentelemetry-api>=1.27,<2",
     "opentelemetry-sdk>=1.27,<2",
@@ -59,6 +60,11 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:anyio.*",
     "ignore::DeprecationWarning:starlette.*",
+    # arq 0.28's `Worker.close()` still calls redis-py's deprecated sync-named
+    # `.close()` (removed in a later redis-py) internally - our own code
+    # always calls `.aclose()` (tests/integration/test_workers.py); nothing
+    # to fix on our side until arq ships a release calling `.aclose()` too.
+    "ignore::DeprecationWarning:arq.*",
 ]
 
 # --- coverage ----------------------------------------------------------
