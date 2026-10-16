@@ -489,8 +489,10 @@ def _extraction_signal_for(outcome: ExtractionOutcome) -> ExtractionSignal | Non
     copies are this same ~5-line dispatch over ``ExtractionOutcome``'s own
     already-frozen contract, not independent logic that could drift in a
     way that changes a result - a change to either would need the other
-    updated to match, which `tests/unit/services/test_decision_service.py`
-    (parity test) checks for explicitly.
+    updated to match, which ``tests/unit/services/test_decision_service.py::
+    TestExtractionSignalForParityWithOrchestration`` checks for explicitly
+    (post-M10 audit F2: this reference previously named that file before it
+    existed - it now does, and the parity test is real, not asserted).
     """
     if outcome.status == "failed":
         return None

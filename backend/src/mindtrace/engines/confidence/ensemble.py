@@ -1,9 +1,29 @@
 """`ensemble_disagreement` and its degenerate-twin guard (spec §06 §4.2).
 
-`EnsembleObservation` is `None` whenever no real parallel-twin ensemble exists
-yet (ADR-007 is unimplemented as of this milestone) - that is the "ensemble
-unavailable" state, carried straight through as `(None, None, False)` rather
-than synthesised from a single base-twin score.
+This module's own math is unchanged since before M10 - ADR-007 did not
+modify it, only gave it a real caller: `services.decision_service.
+run_simulation` now builds a real `EnsembleObservation` from
+`engines.simulation.parallel.run_twin_ensemble`'s per-twin scores/labels and
+passes it in, where every caller before M10 always passed `None`.
+`orchestration.simulate()`'s own internal confidence call still passes
+`ensemble=None` (that result is computed but not the one `run_simulation`
+persists - see `services.decision_service.run_simulation`'s docstring) - so
+both states handled below are genuinely live, not one historical and one
+current.
+
+`ensemble` is `None` whenever no parallel-twin ensemble was computed for
+this call - the honest "ensemble unavailable" state, carried straight
+through as `(None, None, False)` rather than synthesised from a single
+base-twin score (never `(1.0 - 0.0, 0.0, False)` or any other fabricated
+stand-in). When `ensemble` is a real `EnsembleObservation` (>= 2 scores),
+`ensemble_term` returns a genuine dispersion-plus-label-disagreement measure
+instead, computed only from `ensemble.scores`/`ensemble.labels` - this
+module never sees a `DecisionResult` or its `score` directly; the
+translation from each twin's own `decision.score` into `ensemble.scores` is
+`engines.simulation.parallel.ensemble_observation_from`'s job, not this
+module's. That separation is what keeps the resulting confidence term a
+measure of disagreement *between* twins, never a restatement of any one
+twin's own decision score.
 """
 
 from __future__ import annotations
