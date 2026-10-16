@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from mindtrace import __version__
 from mindtrace.api.app import create_app
+from mindtrace.config import get_settings
 
 
 def test_health_returns_ok() -> None:
@@ -56,3 +57,24 @@ def test_app_exposes_exactly_the_current_business_routes() -> None:
         "/v1/evidence/{belief_type}/{belief_id}",
         "/v1/beliefs/{belief_type}/{belief_id}:dispute",
     }
+
+
+class TestCors:
+    """The frontend (a different origin) needs ``Access-Control-Allow-Origin`` on every
+    response, or the browser blocks it even though a bare ``curl``/``TestClient`` call
+    (neither enforces CORS) would succeed - a real, easy-to-miss gap."""
+
+    def test_the_configured_frontend_origin_is_allowed(self) -> None:
+        client = TestClient(create_app())
+        configured_origin = get_settings().cors_origins_list()[0]
+
+        response = client.get("/health", headers={"Origin": configured_origin})
+
+        assert response.headers["access-control-allow-origin"] == configured_origin
+
+    def test_an_unlisted_origin_is_not_allowed(self) -> None:
+        client = TestClient(create_app())
+
+        response = client.get("/health", headers={"Origin": "https://not-mindtrace.example"})
+
+        assert "access-control-allow-origin" not in response.headers

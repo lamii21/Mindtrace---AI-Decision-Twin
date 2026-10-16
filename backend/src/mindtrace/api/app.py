@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from mindtrace import __version__
 from mindtrace.api.errors import register_exception_handlers
@@ -48,12 +49,27 @@ def create_app() -> FastAPI:
     {id}` re-derivation - no Contradiction Engine, no Evaluation Engine,
     still no `/v1/twins*`/outcome-recording (out of this milestone's
     documented scope).
+
+    CORS is restricted to `Settings.cors_origins` (default: the frontend's
+    own dev origin, `http://localhost:3000`) - never a wildcard, since every
+    route but register/login requires a bearer token and the frontend sends
+    it via `Authorization`, not a cookie; `allow_credentials=True` matters
+    only if a future browser flow ever needs cookies, but a specific
+    origin allowlist is required either way (browsers reject `allow_origins
+    = ["*"]` together with credentialed requests).
     """
     app = FastAPI(
         title="MINDTRACE API",
         version=__version__,
         summary="An auditable AI decision twin.",
         lifespan=_lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_settings().cors_origins_list(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.include_router(health.router)
     app.include_router(auth.router)

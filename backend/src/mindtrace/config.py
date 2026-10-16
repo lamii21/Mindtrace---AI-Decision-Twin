@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     access_token_ttl_seconds: int = 1800  # ~30 min, docs/api/08 s1
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 days - not specified by docs; a
     # reasonable, documented default for a rotating, revocable refresh token (M6-API planning)
+    cors_origins: str = "http://localhost:3000"  # comma-separated; the frontend's dev origin.
+    # A real CORS allowlist, not a wildcard (never `*` - the API is authenticated, and a
+    # wildcard origin with credentialed requests is both meaningless to browsers and a
+    # real cross-origin-credential-leak risk). A deployment sets this to its real origin(s).
+
+    def cors_origins_list(self) -> list[str]:
+        """``cors_origins``, split and trimmed - never empty strings from a trailing comma."""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     def master_key_bytes(self) -> bytes:
         """Decode ``master_key`` into exactly :data:`MASTER_KEY_LENGTH` raw bytes.
