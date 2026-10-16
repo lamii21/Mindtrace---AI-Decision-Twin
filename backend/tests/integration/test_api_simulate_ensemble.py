@@ -170,14 +170,37 @@ class TestSingleTwinCompatibility:
 
 
 class TestEnsembleDisagreementCanForceUncertain:
-    def test_a_high_disagreement_scenario_can_resolve_to_uncertain_via_the_ensemble_gate(
+    """Post-M10 audit F1-B: this class previously held one test
+    (``test_a_high_disagreement_scenario_can_resolve_to_uncertain_via_the_ensemble_gate``)
+    whose assertion was an if/else that passed on either branch - it proved nothing about
+    whether the ensemble-disagreement gate (``services.decision_service.
+    _compose_final_label``'s ``UncertainReason.ENSEMBLE_DISAGREEMENT`` branch) is reachable
+    through the real ``/v1/simulate`` pipeline. Confirmed directly (printing the real
+    response body under this exact fixture): the base twin's own M3 score-band gate fires
+    first here (``uncertain_reason == "score_in_band"``, base score ~-0.008, well inside
+    the +-0.20 uncertain band) - gate 2 never gets the chance. A broader investigation
+    (this fixture's baseline level swept low/moderate/high/very_high, both the cold-start
+    prior and two maximally-concentrated real M8 pairwise-interview posteriors, 15 real-
+    pipeline configurations total) never reached a scenario where the base twin was
+    decisive (|score| > 0.20) while the synthesis vote still landed on UNCERTAIN: once the
+    base twin's score escapes the uncertain band, the other four twins' scores move with
+    it (their shift is `±λ=0.35` applied to only 2-5 of ~18 factors, consistently producing
+    an inter-twin spread of roughly 0.1-0.15 in this configuration - not enough to overturn
+    ``BASE_TWIN_VOTE_WEIGHT=2.0``'s double weighting of the base twin's own vote unless
+    at least 3 of the 4 other twins flip away from it, which never occurred in any tried
+    configuration). The isolated unit test proving gate 2's own logic is correct lives in
+    ``tests/unit/services/test_decision_service.py::
+    TestComposeFinalLabelEnsembleDisagreementGate`` - that is a different, narrower claim
+    than "the shipped pipeline can reach this gate", which remains undemonstrated. Changing
+    ``lambda``, ``BASE_TWIN_VOTE_WEIGHT``, or a twin's factor set to make it reachable is a
+    design decision for ADR-007, not a correctness fix - explicitly out of scope here.
+    """
+
+    def test_this_fixture_resolves_via_the_base_twins_own_gate_not_the_ensemble_gate(
         self, api_client: TestClient
     ) -> None:
-        """A scenario engineered so some twins would ACCEPT and others would REJECT: the
-        base twin alone might say ACCEPT/REJECT, but if the weight-of-evidence vote across
-        all 5 twins lands on UNCERTAIN, the final, persisted label must be UNCERTAIN with
-        reason 'ensemble_disagreement' - never silently defaulting to the base twin's own
-        raw label (M10 planning s9)."""
+        """Documents the real, current, deterministic behaviour of this exact fixture -
+        not a guess, not a conditional that passes regardless of outcome."""
         _use_llm(api_client, _career_favoring_response())
         _email, tokens = register_and_login(api_client)
         headers = auth_headers(tokens)
@@ -187,14 +210,12 @@ class TestEnsembleDisagreementCanForceUncertain:
             "/v1/simulate", headers=headers, json={"decision_id": decision["id"]}
         ).json()
 
-        # This test documents whichever real outcome this fixture produces rather than
-        # asserting a specific pre-guessed label - the meaningful invariant is the
-        # consistency between decision/uncertain_reason and synthesis, not the label itself.
-        if body["decision"]["uncertain_reason"] == "ensemble_disagreement":
-            assert body["decision"]["label"] == "UNCERTAIN"
-            assert body["synthesis"]["recommendation"] == "UNCERTAIN"
-        else:
-            assert body["decision"]["label"] == body["synthesis"]["recommendation"]
+        assert body["decision"]["label"] == "UNCERTAIN"
+        assert body["decision"]["uncertain_reason"] == "score_in_band"
+        # The synthesis vote happens to agree (every twin is independently UNCERTAIN too),
+        # but that is gate 1 resolving first, not gate 2 - see the class docstring.
+        assert body["synthesis"]["label_consensus"] == "unanimous"
+        assert body["synthesis"]["recommendation"] == "UNCERTAIN"
 
 
 class TestPersistenceRoundTrip:
