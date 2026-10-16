@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #05060a;
+  --foreground: #faf8f3;
+  color-scheme: dark;
+}
+
+* {
+  border-color: rgba(250, 248, 243, 0.08);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .glass-panel {
+    background: linear-gradient(
+      160deg,
+      rgba(250, 248, 243, 0.06),
+      rgba(250, 248, 243, 0.015)
+    );
+    border: 1px solid rgba(250, 248, 243, 0.1);
+    backdrop-filter: blur(16px);
+  }
+
+  .text-gradient-lavender {
+    background: linear-gradient(120deg, #c9bdf0 0%, #9fd4ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .label-mono {
+    font-family: var(--font-mono), monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+  }
+}
+
+::selection {
+  background: rgba(141, 120, 224, 0.35);
+  color: #faf8f3;
+}
+
+/* Minimal custom scrollbar - obsidian themed, not a distraction */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #05060a;
+}
+::-webkit-scrollbar-thumb {
+  background: #232840;
+  border-radius: 999px;
+}
