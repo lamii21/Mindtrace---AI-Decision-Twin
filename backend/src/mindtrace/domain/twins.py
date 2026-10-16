@@ -67,6 +67,19 @@ class TwinTable(BaseModel):
     def _ids_unique_and_not_base(
         cls, value: tuple[TwinDefinition, ...]
     ) -> tuple[TwinDefinition, ...]:
+        if not value:
+            # Matches ``twins.schema.json``'s own ``"minItems": 1`` on this same array
+            # (post-M10 audit F3) - that JSON Schema check only runs at the file-loading
+            # boundary (``load_twin_table``); constructing a ``TwinTable`` directly in
+            # Python (as ``parse_twin_table``, and any future caller, can) bypassed it
+            # entirely, letting an empty table reach ``run_twin_ensemble``/
+            # ``ensemble_observation_from`` and fail there instead, as an unrelated
+            # ``pydantic.ValidationError`` about ``EnsembleObservation`` needing >= 2
+            # scores - a confusing failure far from its real cause. This enforces the
+            # already-authoritative "at least one twin" contract at the domain type
+            # itself, not merely at the file-loading boundary.
+            msg = "a twin table must declare at least one twin"
+            raise SchemaValidationError(msg, source=_DATA_FILE, location="twins")
         ids = [twin.id for twin in value]
         if len(ids) != len(set(ids)):
             msg = f"duplicate twin ids: {ids}"

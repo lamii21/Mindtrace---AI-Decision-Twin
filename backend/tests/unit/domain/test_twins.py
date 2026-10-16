@@ -7,7 +7,13 @@ import pytest
 from mindtrace.domain.errors import SchemaConsistencyError, SchemaValidationError
 from mindtrace.domain.factors import load_factor_taxonomy
 from mindtrace.domain.ids import FactorId
-from mindtrace.domain.twins import BASE_TWIN_ID, TwinDefinition, load_twin_table, parse_twin_table
+from mindtrace.domain.twins import (
+    BASE_TWIN_ID,
+    TwinDefinition,
+    TwinTable,
+    load_twin_table,
+    parse_twin_table,
+)
 
 _TAXONOMY = load_factor_taxonomy()
 
@@ -71,6 +77,15 @@ class TestParseTwinTable:
         with pytest.raises(SchemaConsistencyError, match="unknown factor"):
             parse_twin_table(raw, taxonomy=_TAXONOMY)
 
+    def test_empty_twins_list_raises(self) -> None:
+        """Post-M10 audit F3: ``twins.schema.json`` already declares ``"minItems": 1`` on
+        this array, but ``TwinTable`` itself had no matching invariant - a ``TwinTable``
+        built directly in Python (bypassing the file-loading boundary where that JSON
+        Schema check runs) could hold zero twins and would later fail far from here, inside
+        ``ensemble_observation_from``, with an unrelated ``EnsembleObservation`` error."""
+        with pytest.raises(SchemaValidationError, match="at least one twin"):
+            parse_twin_table(_raw(twins=[]), taxonomy=_TAXONOMY)
+
     def test_duplicate_twin_ids_raises(self) -> None:
         raw = _raw(
             twins=[
@@ -101,6 +116,29 @@ class TestParseTwinTable:
         )
         with pytest.raises(SchemaValidationError, match="both up and down"):
             parse_twin_table(raw, taxonomy=_TAXONOMY)
+
+
+class TestTwinTable:
+    def test_constructing_directly_with_zero_twins_raises(self) -> None:
+        """The same F3 invariant as ``TestParseTwinTable::test_empty_twins_list_raises``,
+        exercised at the type's own constructor - not just through ``parse_twin_table`` -
+        since that was the exact bypass the audit reproduced (a ``TwinTable`` built
+        directly in Python, never touching ``twins.yaml``'s own ``"minItems": 1``)."""
+        with pytest.raises(SchemaValidationError, match="at least one twin"):
+            TwinTable(version=1, factor_schema_version=_TAXONOMY.version, lambda_=0.35, twins=())
+
+    def test_constructing_directly_with_one_twin_succeeds(self) -> None:
+        table = TwinTable(
+            version=1,
+            factor_schema_version=_TAXONOMY.version,
+            lambda_=0.35,
+            twins=(
+                TwinDefinition(
+                    id="x", label="X", up=(FactorId("skill_growth"),), down=(FactorId("stability"),)
+                ),
+            ),
+        )
+        assert len(table.twins) == 1
 
 
 class TestTwinDefinition:
